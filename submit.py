@@ -2,12 +2,12 @@
 
 import os
 
+import numpy as np
 import torch
 from PIL import Image
-import numpy as np
 
 from predict import predict_img
-from unet import UNet
+
 
 # credits to https://stackoverflow.com/users/6076729/manuel-lagunas
 def rle_encode(mask_image):
@@ -38,9 +38,3 @@ def submit(net):
             mask = predict_img(net, img, device)
             enc = rle_encode(mask)
             f.write('{},{}\n'.format(i, ' '.join(map(str, enc))))
-
-
-if __name__ == '__main__':
-    net = UNet(3, 1).cuda()
-    net.load_state_dict(torch.load('MODEL.pth'))
-    submit(net)

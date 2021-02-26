@@ -1,71 +1,78 @@
-from os.path import splitext
+from os.path import splitext, join
 from os import listdir
-import numpy as np
-from glob import glob
-import torch
 from torch.utils.data import Dataset
 import logging
 from PIL import Image
+import torchvision
+from .overlap_tiles import get_closest_tile_size, get_overlap_tiles_coords
+import random
 
 
 class BasicDataset(Dataset):
-    def __init__(self, imgs_dir, masks_dir, scale=1, mask_suffix=''):
+    def __init__(self, imgs_dir, masks_dir, n_tiles=6):
         self.imgs_dir = imgs_dir
         self.masks_dir = masks_dir
-        self.scale = scale
-        self.mask_suffix = mask_suffix
-        assert 0 < scale <= 1, 'Scale must be between 0 and 1'
+        self.n_tiles = n_tiles
 
-        self.ids = [splitext(file)[0] for file in listdir(imgs_dir)
-                    if not file.startswith('.')]
-        logging.info(f'Creating dataset with {len(self.ids)} examples')
+        self.images = [file for file in listdir(imgs_dir)
+                       if not file.startswith('.')]
+        if len(self.imgs_dir) == 0:
+            logging.error(f'No file found in directory {self.imgs_dir}')
+        else:
+            logging.info(f'Creating dataset with {len(self.imgs_dir)} examples')
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.images)
 
-    @classmethod
-    def preprocess(cls, pil_img, scale):
+    def mask_name_from_image_name(self, image_name):
+        base = splitext(image_name)[0]
+        return base + '_mask.gif'
+
+    def preprocess(self, pil_img, pil_mask):
+        padded_img = torchvision.transforms.functional.pad(pil_img, padding=92, padding_mode='reflect')
         w, h = pil_img.size
-        newW, newH = int(scale * w), int(scale * h)
-        assert newW > 0 and newH > 0, 'Scale is too small'
-        pil_img = pil_img.resize((newW, newH))
+        tile_w = get_closest_tile_size(w / self.n_tiles, w)
+        tile_h = get_closest_tile_size(h / self.n_tiles, h)
 
-        img_nd = np.array(pil_img)
+        tiles = get_overlap_tiles_coords(h, w, tile_h, tile_w)
+        random_tile = random.choice(tiles)
 
-        if len(img_nd.shape) == 2:
-            img_nd = np.expand_dims(img_nd, axis=2)
+        mask = torchvision.transforms.functional.crop(pil_mask, top=random_tile[0], left=random_tile[1],
+                                                      height=tile_h, width=tile_w)
+        img = torchvision.transforms.functional.crop(padded_img, top=random_tile[0], left=random_tile[1],
+                                                     height=tile_h + 184, width=tile_w + 184)
 
-        # HWC to CHW
-        img_trans = img_nd.transpose((2, 0, 1))
-        if img_trans.max() > 1:
-            img_trans = img_trans / 255
+        mask_tensor = torchvision.transforms.functional.pil_to_tensor(mask).reshape(tile_h, tile_w)
+        img_tensor = torchvision.transforms.functional.pil_to_tensor(img)
 
-        return img_trans
+        # img_tensor = torchvision.transforms.functional.normalize(img_tensor, mean=[127.0]*3, std=[127.0]*3)
+
+        return img_tensor, mask_tensor
 
     def __getitem__(self, i):
-        idx = self.ids[i]
-        mask_file = glob(self.masks_dir + idx + self.mask_suffix + '.*')
-        img_file = glob(self.imgs_dir + idx + '.*')
+        img_name = self.images[i]
+        mask_file = join(self.masks_dir, self.mask_name_from_image_name(img_name))
+        img_file = join(self.imgs_dir, img_name)
 
-        assert len(mask_file) == 1, \
-            f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
-        assert len(img_file) == 1, \
-            f'Either no image or multiple images found for the ID {idx}: {img_file}'
-        mask = Image.open(mask_file[0])
-        img = Image.open(img_file[0])
+        mask = Image.open(mask_file)
+        img = Image.open(img_file)
 
         assert img.size == mask.size, \
-            f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
+            f'Image and mask {img_name} should be the same size, but are {img.size} and {mask.size}'
 
-        img = self.preprocess(img, self.scale)
-        mask = self.preprocess(mask, self.scale)
-
+        img, mask = self.preprocess(img, mask)
         return {
-            'image': torch.from_numpy(img).type(torch.FloatTensor),
-            'mask': torch.from_numpy(mask).type(torch.FloatTensor)
+            'image': img,
+            'mask': mask
         }
 
 
-class CarvanaDataset(BasicDataset):
-    def __init__(self, imgs_dir, masks_dir, scale=1):
-        super().__init__(imgs_dir, masks_dir, scale, mask_suffix='_mask')
+if __name__ == '__main__':
+    ds = BasicDataset('/mnt/hdd/datasets/train_hq', '/mnt/hdd/datasets/train_masks', 2)
+    data = ds[0]
+    import matplotlib.pyplot as plt
+    plt.imshow(data['image'].numpy().transpose((1, 2, 0)))
+    plt.show()
+    plt.imshow(data['mask'].numpy().transpose((1, 2, 0)))
+    plt.show()
+    print(data['image'].shape, data['mask'].shape)
