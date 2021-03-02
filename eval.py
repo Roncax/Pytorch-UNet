@@ -7,12 +7,12 @@ from dice_loss import dice_coeff
 
 def eval_net(net, loader, device):
     """Evaluation without the densecrf with the dice coefficient"""
-    net.eval()
+    net.eval() # the net is in evaluation mode
     mask_type = torch.float32 if net.n_classes == 1 else torch.long
     n_val = len(loader)  # the number of batch
     tot = 0
 
-    with tqdm(total=n_val, desc='Validation round', unit='batch', leave=False) as pbar:
+    with tqdm(total=n_val, desc='Validation round', unit=' batch', leave = False) as pbar:
         for batch in loader:
             imgs, true_masks = batch['image'], batch['mask']
             imgs = imgs.to(device=device, dtype=torch.float32)
@@ -29,5 +29,5 @@ def eval_net(net, loader, device):
                 tot += dice_coeff(pred, true_masks).item()
             pbar.update()
 
-    net.train()
+    net.train()  # the net return to training mode
     return tot / n_val
