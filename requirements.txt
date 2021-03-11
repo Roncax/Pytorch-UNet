@@ -6,7 +6,6 @@ torchvision~=0.8.2
 tensorboard
 future
 tqdm~=4.56.2
-
 opencv-python~=4.5.1.48
 imageio~=2.9.0
 nibabel~=3.2.1

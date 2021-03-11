@@ -1,7 +1,7 @@
 *.pyc
-data/
+data/databases/
 __pycache__/
-checkpoints/
+data/checkpoints/
 *.pth
 *.jpg
 SUBMISSION*
