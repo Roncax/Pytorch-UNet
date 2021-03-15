@@ -3,8 +3,8 @@ import cv2
 from nibabel import load as load_nii
 import numpy as np
 import imageio
-
-
+import paths
+from utilities.various import check_create_dir
 
 patients_test = ['25', '30', '50']
 
@@ -20,28 +20,26 @@ def read_nii(path):
 # load all labels in path from a  .nii
 def nii2label(nii_root, root_path):
     names = [name for name in os.listdir(nii_root)]
-    if not os.path.exists(root_path):
-        os.mkdir(root_path)
+    check_create_dir(root_path)
 
     for name in names:
         nii_path = os.path.join(nii_root, name)
 
         target_path = root_path
         if name in patients_test:
-            target_path = os.path.join(test_path, f"img_gt/patient_{name}")
-            if not os.path.exists(target_path):
-                os.mkdir(target_path)
+            target_path = f'{paths.dir_test_GTimg}/patient_{name}'
+            check_create_dir(target_path)
 
-        label_array = np.uint8(load_nii(os.path.join(nii_path, "label.nii")).get_fdata())
+        label_array = np.uint8(load_nii(f'{nii_path}/label.nii').get_fdata())
 
         # different colors by organs (label_array are different masks)
         label_array[label_array == 1] = 255  # foreground
         label_array[label_array == 2] = 150  # lungs (both)
-        # label_array[label_array == 3] = 150
-        # label_array[label_array == 4] = 50
-        # label_array[label_array == 5] = 125
-        # label_array[label_array == 6] = 200
-        # label_array[label_array == 7] = 175
+        label_array[label_array == 3] = 0
+        label_array[label_array == 4] = 0
+        label_array[label_array == 5] = 0
+        label_array[label_array == 6] = 0
+        label_array[label_array == 7] = 0
 
         print(f"{name}: {label_array.shape}")
 
@@ -54,19 +52,17 @@ def nii2label(nii_root, root_path):
 # load all images in path from a  .nii
 def nii2img(nii_root, root_path):
     names = [name for name in os.listdir(nii_root)]
-    if not os.path.exists(root_path):
-        os.mkdir(root_path)
+    check_create_dir(root_path)
 
     for name in names:
         nii_path = os.path.join(nii_root, name)
 
         target_path = root_path
         if name in patients_test:
-            target_path = os.path.join(test_path, f"img/patient_{name}")
-            if not os.path.exists(target_path):
-                os.mkdir(target_path)
+            target_path = f'{paths.dir_test_img}/patient_{name}'
+            check_create_dir(target_path)
 
-        image_array = read_nii(os.path.join(nii_path, "databases.nii"))
+        image_array = read_nii(os.path.join(nii_path, "data.nii"))
         print(f"{name}: {image_array.shape}")
         for n in range(image_array.shape[2]):
             cv2.imwrite(os.path.join(target_path, f"patient_{name}_" + 'img{:0>3d}.png'.format(n + 1)),
@@ -100,7 +96,6 @@ def img2gif(png_dir, target_folder, out_name):
 
 
 def load_all():
-    nii2img(nii_root=raw_data_path, root_path=data_path)
-    nii2label(nii_root=raw_data_path, root_path=mask_path)
-
+    nii2img(nii_root=paths.dir_raw_db, root_path=paths.dir_train_imgs)
+    nii2label(nii_root=paths.dir_raw_db, root_path=paths.dir_train_masks)
 

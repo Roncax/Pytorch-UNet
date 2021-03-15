@@ -1,20 +1,18 @@
 import logging
 import os
 import time
-
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
-
-from network_architecture import UNet
-from utilities import plot_img_and_mask
-from dataset_conversion.dataset import BasicDataset
-from evaluation.dice_loss import dice_coef_test
-from dataset_conversion.structseg_load import img2gif
-
-
+from utilities.data_vis import plot_img_and_mask
+from dataset_conversion.structseg2019_load import img2gif
+import paths
+from utilities.various import check_create_dir, build_np_volume
+from preprocessing.scale import scale_img
+from evaluation.metrics import ConfusionMatrix
+import evaluation.metrics as metrics
 
 
 def predict_img(net,
@@ -23,7 +21,7 @@ def predict_img(net,
                 scale_factor,
                 out_threshold):
     net.eval()
-    img = torch.from_numpy(BasicDataset.preprocess(full_img, scale_factor))
+    img = torch.from_numpy(scale_img(full_img, scale_factor))
 
     img = img.unsqueeze(0)
     img = img.to(device=device, dtype=torch.float32)
@@ -60,8 +58,7 @@ def get_output_filenames_code(path, out_path):
     out_files = []
     input_files = os.listdir(path)
 
-    if not os.path.exists(out_path):
-        os.mkdir(out_path)
+    check_create_dir(out_path)
 
     for f in input_files:
         pathsplit = os.path.splitext(f)
@@ -70,78 +67,48 @@ def get_output_filenames_code(path, out_path):
     return out_files
 
 
-def predict_patient(scale, mask_threshold, no_save, viz, patient, net, device):
-    dice_scores = []
-    path_in = os.path.join(path_in_files, patient)
-    path_out = os.path.join(path_out_files, patient)
-    path_gt = os.path.join(path_gt_masks, patient)
+def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
+    path_in = os.path.join(paths.dir_test_img, patient)
+    path_out = os.path.join(paths.dir_mask_prediction, patient)
+    path_gt = os.path.join(paths.dir_test_GTimg, patient)
 
     out_files = get_output_filenames_code(path_in, path_out)
     in_files = os.listdir(path_in)
 
     t0 = time.time()
-
-    intersection_tot = 0
-    im_sum_tot = 0
     for i, fn in enumerate(in_files):
         img = Image.open(os.path.join(path_in, fn))
+        gt_mask = Image.open(os.path.join(path_gt, fn))
 
         mask = predict_img(net=net,
                            full_img=img,
                            scale_factor=scale,
                            out_threshold=mask_threshold,
                            device=device)
-        gt_mask = Image.open(os.path.join(path_gt, fn))
-        dice, im_sum, intersection = dice_coef_test(gt_mask, mask)
 
-        im_sum_tot += im_sum
-        intersection_tot += intersection
-        dice_scores.append(dice)
-
-        if not no_save:
+        if save:
+            mask = np.array(mask).astype(np.bool)
+            gt_mask = np.array(gt_mask).astype(np.bool)
             result = mask_to_image(mask)
             result.save(out_files[i])
-            # logging.info("Mask saved to {}".format(out_files[i]))
 
         if viz:
-            plot_img_and_mask(img, mask, ground_truth=gt_mask, dice=dice, fig_name=fn, patient_name=patient)
+            plot_img_and_mask(img, mask, ground_truth=gt_mask, fig_name=fn, patient_name=patient)
     if viz:
-        img2gif(png_dir=f"/databases/Task3_Thoracic_OAR/tests/plt_save/{patient}",
-                target_folder="/home/roncax/Git/Pytorch-UNet/databases/Task3_Thoracic_OAR/tests/gifs/",
+        img2gif(png_dir=f"{paths.dir_plot_saves}/{patient}",
+                target_folder=paths.dir_predicted_gifs,
                 out_name=f"{patient}")
 
-    dice_tot = np.array(dice_scores).mean()
-    new_dice = (2 * intersection_tot) / im_sum_tot
+    #build np volume and confusion matrix
+    patient_volume = build_np_volume(dir=os.path.join(paths.dir_test_GTimg, patient))
+    gt_volume = build_np_volume(dir=os.path.join(paths.dir_mask_prediction, patient))
+    cm = ConfusionMatrix(test=patient_volume, reference=gt_volume)
 
-    end = time.time()
-    logging.info(f"Mean dice score of {patient}:\n"
-                 f"\tOLD metric: {dice_tot}\n"
-                 f"\tNEW metric: {new_dice}")
-    logging.info(f"Inference time for {len(in_files)} images: {end - t0} - mean time: {(end - t0) / len(in_files)}")
+    # print results
+    logging.info(
+        f"Inference time for {len(in_files)} ({patient}) images: {round(time.time() - t0, 4)} - mean time: {round((time.time() - t0) / len(in_files), 4)}")
+
+    for m in metrics.ALL_METRICS.keys():
+        logging.info(f'{m}: {round(metrics.ALL_METRICS[m](confusion_matrix=cm), 3)}')
+
     return
-
-
-def predict_total():
-    model = "/home/roncax/Git/Pytorch-UNet/checkpoints/CP_EPOCH1-LR(0.0001)_BS(3)_SCALE(1)_EPOCHS(1).pth"
-    scale = 1
-    mask_threshold = 0.4
-    no_save = False
-    viz = False
-
-    net = UNet(n_channels=1, n_classes=1)
-
-    logging.info("Loading model {}".format(model))
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    logging.info(f'Using device {device}')
-    net.to(device=device)
-    net.load_state_dict(torch.load(model, map_location=device))
-    logging.info("Model loaded!")
-
-    for patient in os.listdir(path_in_files):
-        predict_patient(scale=scale, mask_threshold=mask_threshold, no_save=no_save, viz=viz, patient=patient, net=net,
-                        device=device)
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    predict_total()

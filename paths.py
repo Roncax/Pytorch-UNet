@@ -1,15 +1,46 @@
+from utilities.various import check_create_dir
+
+dir_root = '/home/roncax/Git/Pytorch-UNet'
+
+dir_checkpoint = f'{dir_root}/data/checkpoints'
+dir_tensorboard_runs = f'{dir_root}/data/runs'
+
+dir_raw_data = f'{dir_root}/data/databases/raw_data'
+dir_processed_data = f'{dir_root}/data/databases/processed_data'
+
+# Database to analyze
+# raw
+db_name = 'StructSeg2019_Task3_Thoracic_OAR'
+dir_raw_db = f'{dir_raw_data}/{db_name}'
+
+# train
+dir_db = f'{dir_processed_data}/{db_name}'
+dir_decompressed_imgs = f'{dir_db}/train'
+dir_train_imgs = f'{dir_decompressed_imgs}/images'
+dir_train_masks = f'{dir_decompressed_imgs}/masks'
+
+# test
+dir_test = f'{dir_db}/tests'
+dir_predicted_gifs = f'{dir_test}/gifs'
+dir_test_img = f'{dir_test}/img'
+dir_test_GTimg = f'{dir_test}/img_gt'
+dir_mask_prediction = f'{dir_test}/mask_prediction'
+dir_plot_saves = f'{dir_test}/plt_save'
+
+## Model
+dir_pretrained_model = f'{dir_checkpoint}/2021-03-15 07:34:35.601618_CP_EPOCH10-LR(0.0001)_BS(3)_SCALE(1)_EPOCHS(10).pth'
 
 
-dir_checkpoint = '../../data/checkpoints/'
-dir_img = "/databases/Task3_Thoracic_OAR/Thoracic_OAR_img/images"
-dir_mask = "/databases/Task3_Thoracic_OAR/Thoracic_OAR_img/masks"
-
-path_in_files = "/databases/Task3_Thoracic_OAR/tests/img/"
-path_out_files = "/databases/Task3_Thoracic_OAR/tests/mask_prediction/"
-path_gt_masks = "/databases/Task3_Thoracic_OAR/tests/img_gt/"
-path_gifs = "/databases/Task3_Thoracic_OAR/tests/gifs/"
-
-raw_data_path = "/databases/Task3_Thoracic_OAR/Thoracic_OAR"
-data_path = "/databases/Task3_Thoracic_OAR/Thoracic_OAR_img/images"
-mask_path = "/databases/Task3_Thoracic_OAR/Thoracic_OAR_img/masks"
-test_path = "/databases/Task3_Thoracic_OAR/tests"
+check_create_dir(dir_checkpoint)
+check_create_dir(dir_tensorboard_runs)
+check_create_dir(dir_processed_data)
+check_create_dir(dir_db)
+check_create_dir(dir_decompressed_imgs)
+check_create_dir(dir_train_imgs)
+check_create_dir(dir_train_masks)
+check_create_dir(dir_test)
+check_create_dir(dir_predicted_gifs)
+check_create_dir(dir_test_img)
+check_create_dir(dir_test_GTimg)
+check_create_dir(dir_mask_prediction)
+check_create_dir(dir_plot_saves)
