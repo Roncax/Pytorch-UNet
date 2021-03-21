@@ -9,10 +9,10 @@ def predict_total():
     model = paths.dir_pretrained_model
     scale = 1
     mask_threshold = 0.4
-    save = False
-    viz = False
+    save = True
+    viz = True
 
-    net = UNet(n_channels=1, n_classes=1)
+    net = UNet(n_channels=1, n_classes=7)
 
     logging.info("Loading model {}".format(model))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

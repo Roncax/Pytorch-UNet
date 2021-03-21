@@ -9,6 +9,7 @@ from utilities.various import check_create_dir
 patients_test = ['25', '30', '50']
 
 
+
 # read and decode a .nii file
 def read_nii(path):
     img = load_nii(path).get_fdata()
@@ -32,16 +33,17 @@ def nii2label(nii_root, root_path):
 
         label_array = np.uint8(load_nii(f'{nii_path}/label.nii').get_fdata())
 
-        # different colors by organs (label_array are different masks)
-        label_array[label_array == 1] = 255  # foreground
-        label_array[label_array == 2] = 150  # lungs (both)
-        label_array[label_array == 3] = 0
-        label_array[label_array == 4] = 0
-        label_array[label_array == 5] = 0
-        label_array[label_array == 6] = 0
-        label_array[label_array == 7] = 0
 
-        print(f"{name}: {label_array.shape}")
+        #organs = ['Bg', 'RightLung', 'LeftLung', 'Heart', 'Trachea', 'Esophagus', 'SpinalCord']
+        # different colors by organs (label_array are different masks)
+        label_array[label_array == 0] = 0
+        label_array[label_array == 1] = 1
+        label_array[label_array == 2] = 1
+        label_array[label_array == 3] = 3
+        label_array[label_array == 4] = 4
+        label_array[label_array == 5] = 5
+        label_array[label_array == 6] = 6
+
 
         # save labels with patient's number
         for n in range(label_array.shape[2]):
@@ -99,3 +101,4 @@ def load_all():
     nii2img(nii_root=paths.dir_raw_db, root_path=paths.dir_train_imgs)
     nii2label(nii_root=paths.dir_raw_db, root_path=paths.dir_train_masks)
 
+nii2label(nii_root=paths.dir_raw_db, root_path=paths.dir_train_masks)

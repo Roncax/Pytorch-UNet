@@ -11,6 +11,7 @@ from dataset_conversion.dataset import BasicDataset
 from torch.utils.data import DataLoader, random_split
 import paths
 from evaluation.holdout_val import holdout
+import numpy as np
 
 
 def train_net(net,
@@ -30,7 +31,7 @@ def train_net(net,
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True, drop_last=True)
 
-    writer = SummaryWriter(log_dir=paths.dir_tensorboard_runs,
+    writer = SummaryWriter(log_dir=f"{paths.dir_tensorboard_runs}/_{datetime.now()}",
                            comment=f'-LR({lr})_BS({batch_size})_SCALE({img_scale})_EPOCHS({epochs})')
     global_step = 0
     logging.info(f'''Starting training:
@@ -50,8 +51,10 @@ def train_net(net,
 
     if net.n_classes > 1:
         criterion = nn.CrossEntropyLoss()  # weight can be added for class imbalance
+        print("Crossentropy")
     else:
         criterion = nn.BCEWithLogitsLoss()
+        print("BCEWithLogitsLoss")
 
     loss_min = 99999
     for epoch in range(epochs):
@@ -71,11 +74,20 @@ def train_net(net,
                 mask_type = torch.float32 if net.n_classes == 1 else torch.long
                 true_masks = true_masks.to(device=device, dtype=mask_type)
 
-                if(global_step==1):
+                if (global_step == 1):
                     writer.add_graph(net, imgs)
 
                 masks_pred = net(imgs)
-                loss = criterion(masks_pred, true_masks)
+
+                print(f"image prediction shape: {masks_pred.size()}")
+                print(f"mask shape: {true_masks.size()}")
+                print(masks_pred)
+                print(f"mask shape: {true_masks.squeeze(1).size()}")
+
+                torch.set_printoptions(threshold=10_000)
+                print(true_masks)
+
+                loss = criterion(masks_pred, true_masks.squeeze(1))
                 epoch_loss += loss.item()
 
                 writer.add_scalar('Loss/train', loss.item(), global_step)
@@ -90,9 +102,11 @@ def train_net(net,
                 pbar.update(imgs.shape[0])
                 global_step += 1
 
-        loss_current = holdout(net=net, writer=writer, logging=logging, optimizer=optimizer, global_step=global_step, imgs=imgs,
-                true_masks=true_masks, val_loader=val_loader, device=device, scheduler=scheduler,
-                masks_pred=masks_pred)
+                if global_step % (len(dataset) // (10 * batch_size)) == 0:
+                    loss_current = holdout(net=net, writer=writer, logging=logging, optimizer=optimizer, global_step=global_step,
+                                           imgs=imgs,
+                                           true_masks=true_masks, val_loader=val_loader, device=device, scheduler=scheduler,
+                                           masks_pred=masks_pred)
 
         if save_cp:
             if loss_current < loss_min:

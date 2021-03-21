@@ -8,24 +8,25 @@ from datetime import datetime
 from network_architecture.unet import UNet
 from training.train import train_net
 import paths
+from torchsummary import summary
 
 if __name__ == '__main__':
 
     load = False
     load_dir = ""  # Load model from a .pth file
     epochs = 1  # Number of epochs
-    batch_size = 3  # Batch size
+    batch_size = 1 # Batch size
     lr = 0.0001  # Learning rate
     scale = 1  # Downscaling factor of the images
     val = 10.0  # Percent of the databases that is used as validation (0-100)
     save_ckps = True
     deterministic = False
-    #TODO
+    # TODO
     models = []
     initialization = ''
     optimizer = ''
     loss = ''
-    dataset = '' #vari organi - all
+    dataset = ''  # vari organi - all
     dropout = ''
     deep_supervision = ''
 
@@ -50,7 +51,10 @@ if __name__ == '__main__':
     #   - For 1 class and background, use n_classes=1
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
-    net = UNet(n_channels=1, n_classes=1, bilinear=True).cuda()
+    net = UNet(n_channels=1, n_classes=6, bilinear=True).cuda()
+
+    summary(net, input_size=(1, 512, 512))
+
     logging.info(f'Network:\n'
                  f'\t{net.n_channels} input channels\n'
                  f'\t{net.n_classes} output channels (classes)\n'

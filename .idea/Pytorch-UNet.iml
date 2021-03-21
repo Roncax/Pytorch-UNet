@@ -5,7 +5,7 @@
       <excludeFolder url="file://$MODULE_DIR$/data/checkpoints" />
       <excludeFolder url="file://$MODULE_DIR$/data/databases" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.8 (unet_env)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.8 (thesis)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">

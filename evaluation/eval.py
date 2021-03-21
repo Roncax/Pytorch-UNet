@@ -22,24 +22,25 @@ def eval_net(net, loader, device):
             with torch.no_grad():
                 mask_pred = net(imgs)
 
-            if net.n_classes > 1:
-                tot += F.cross_entropy(mask_pred, true_masks).item()
-            else:
-                pred = torch.sigmoid(mask_pred)
+            for true_mask, pred in zip(true_masks, mask_pred):
                 pred = (pred > 0.5).float()
 
-                pred = pred.detach().cpu().numpy()
-                true_masks = true_masks.detach().cpu().numpy()
-                cm = metrics.ConfusionMatrix(test=pred, reference=true_masks)
-                tp_, fp_, tn_, fn_ = cm.get_matrix()
-                tp += tp_
-                fp += fp_
-                tn += tn_
-                fn += fn_
+                if net.n_classes > 1:
+                    #tot += F.cross_entropy(mask_pred, true_masks).item()
+                    tot += F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0).squeeze(1)).item()
+                else:
+                    pred = pred.detach().cpu().numpy()
+                    true_masks = true_masks.detach().cpu().numpy()
+                    cm = metrics.ConfusionMatrix(test=pred, reference=true_mask)
+                    tp_, fp_, tn_, fn_ = cm.get_matrix()
+                    tp += tp_
+                    fp += fp_
+                    tn += tn_
+                    fn += fn_
 
                 # tot += dice_coeff(pred, true_masks).item()
-            pbar.set_postfix(**{'loss (batch)': tp})
             pbar.update()
-        tot += 2 * tp / (2 * tp + fp + fn)
+        if net.n_classes == 1:
+            tot = 2 * tp / (2 * tp + fp + fn)
     net.train()  # the net return to training mode
     return tot

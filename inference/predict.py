@@ -86,9 +86,13 @@ def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
                            out_threshold=mask_threshold,
                            device=device)
 
+
+
         if save:
             mask = np.array(mask).astype(np.bool)
+            print(mask.shape)
             gt_mask = np.array(gt_mask).astype(np.bool)
+            print(gt_mask.shape)
             result = mask_to_image(mask)
             result.save(out_files[i])
 
@@ -99,16 +103,17 @@ def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
                 target_folder=paths.dir_predicted_gifs,
                 out_name=f"{patient}")
 
-    #build np volume and confusion matrix
-    patient_volume = build_np_volume(dir=os.path.join(paths.dir_test_GTimg, patient))
-    gt_volume = build_np_volume(dir=os.path.join(paths.dir_mask_prediction, patient))
-    cm = ConfusionMatrix(test=patient_volume, reference=gt_volume)
+    if net.n_classes == 1:
+        #build np volume and confusion matrix
+        patient_volume = build_np_volume(dir=os.path.join(paths.dir_test_GTimg, patient))
+        gt_volume = build_np_volume(dir=os.path.join(paths.dir_mask_prediction, patient))
+        cm = ConfusionMatrix(test=patient_volume, reference=gt_volume)
 
-    # print results
-    logging.info(
-        f"Inference time for {len(in_files)} ({patient}) images: {round(time.time() - t0, 4)} - mean time: {round((time.time() - t0) / len(in_files), 4)}")
+        # print results
+        logging.info(
+            f"Inference time for {len(in_files)} ({patient}) images: {round(time.time() - t0, 4)} - mean time: {round((time.time() - t0) / len(in_files), 4)}")
 
-    for m in metrics.ALL_METRICS.keys():
-        logging.info(f'{m}: {round(metrics.ALL_METRICS[m](confusion_matrix=cm), 3)}')
+        for m in metrics.ALL_METRICS.keys():
+            logging.info(f'{m}: {round(metrics.ALL_METRICS[m](confusion_matrix=cm), 3)}')
 
     return

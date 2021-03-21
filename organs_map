@@ -1,0 +1,9 @@
+{
+  "Bg": "0",
+  "RightLung": "1",
+  "LeftLung": "2",
+  "Heart":"3",
+  "Trachea": "4",
+  "Esophagus": "5",
+  "SpinalCord": "6"
+}

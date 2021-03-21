@@ -33,6 +33,7 @@ class BasicDataset(Dataset):
         img = scale_img(img, self.scale)
         mask = scale_img(mask, self.scale)
 
+
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),
             'mask': torch.from_numpy(mask).type(torch.FloatTensor)

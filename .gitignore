@@ -1,7 +1,6 @@
 *.pyc
-data/
+*.png
 __pycache__/
 *.pth
 *.jpg
-SUBMISSION*
-venv/
+*.nii
