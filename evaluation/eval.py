@@ -27,7 +27,7 @@ def eval_net(net, loader, device):
 
                 if net.n_classes > 1:
                     #tot += F.cross_entropy(mask_pred, true_masks).item()
-                    tot += F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0).squeeze(1)).item()
+                    tot += F.cross_entropy(pred.unsqueeze(dim=0), true_mask).item()
                 else:
                     pred = pred.detach().cpu().numpy()
                     true_masks = true_masks.detach().cpu().numpy()

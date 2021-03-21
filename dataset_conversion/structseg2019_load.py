@@ -36,13 +36,13 @@ def nii2label(nii_root, root_path):
 
         #organs = ['Bg', 'RightLung', 'LeftLung', 'Heart', 'Trachea', 'Esophagus', 'SpinalCord']
         # different colors by organs (label_array are different masks)
-        label_array[label_array == 0] = 0
-        label_array[label_array == 1] = 1
-        label_array[label_array == 2] = 1
-        label_array[label_array == 3] = 3
-        label_array[label_array == 4] = 4
-        label_array[label_array == 5] = 5
-        label_array[label_array == 6] = 6
+        # label_array[label_array == 0] = 0
+        # label_array[label_array == 1] = 1
+        # label_array[label_array == 2] = 1
+        # label_array[label_array == 3] = 3
+        # label_array[label_array == 4] = 4
+        # label_array[label_array == 5] = 5
+        # label_array[label_array == 6] = 6
 
 
         # save labels with patient's number

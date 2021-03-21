@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -13,6 +14,7 @@ from utilities.various import check_create_dir, build_np_volume
 from preprocessing.scale import scale_img
 from evaluation.metrics import ConfusionMatrix
 import evaluation.metrics as metrics
+import matplotlib.pyplot as plt
 
 
 def predict_img(net,
@@ -25,33 +27,42 @@ def predict_img(net,
 
     img = img.unsqueeze(0)
     img = img.to(device=device, dtype=torch.float32)
+    print(f"IMG: {img.shape}")
 
     with torch.no_grad():
         output = net(img)
 
         if net.n_classes > 1:
-            probs = F.softmax(output, dim=1)
+            probs = F.softmax(output, dim=1) #prob from 0 to 1 (dim = masks)
         else:
             probs = torch.sigmoid(output)
-
         probs = probs.squeeze(0)
 
-        tf = transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.Resize(full_img.size[1]),
-                transforms.ToTensor()
-            ]
-        )
+        # tf = transforms.Compose(
+        #     [
+        #         transforms.ToPILImage(),
+        #         transforms.Resize(full_img.size[1]),
+        #         transforms.ToTensor()
+        #     ]
+        # )
 
-        probs = tf(probs.cpu())
+        #probs = tf(probs.cpu())
         full_mask = probs.squeeze().cpu().numpy()
 
     return full_mask > out_threshold
 
 
 def mask_to_image(mask):
-    return Image.fromarray((mask * 255).astype(np.uint8))
+    with open('/home/roncax/Git/Pytorch-UNet/organs_map.json') as f:
+        mask_dict = json.load(f)
+    print(f"MASK TO IMAGE: {mask.shape}")
+    for i, m in enumerate(mask):
+
+        plt.imshow(Image.fromarray((m * 255).astype(np.uint8)))
+        plt.title(mask_dict[f'{i}'])
+        plt.show()
+
+    #return Image.fromarray((mask * 255).astype(np.uint8))
 
 
 def get_output_filenames_code(path, out_path):
@@ -86,15 +97,16 @@ def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
                            out_threshold=mask_threshold,
                            device=device)
 
-
-
+        mask_to_image(mask)
+        plt.imshow(gt_mask)
+        plt.show()
         if save:
             mask = np.array(mask).astype(np.bool)
             print(mask.shape)
             gt_mask = np.array(gt_mask).astype(np.bool)
             print(gt_mask.shape)
             result = mask_to_image(mask)
-            result.save(out_files[i])
+            #result.save(out_files[i])
 
         if viz:
             plot_img_and_mask(img, mask, ground_truth=gt_mask, fig_name=fn, patient_name=patient)
@@ -102,6 +114,9 @@ def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
         img2gif(png_dir=f"{paths.dir_plot_saves}/{patient}",
                 target_folder=paths.dir_predicted_gifs,
                 out_name=f"{patient}")
+
+    #for m in mask:
+
 
     if net.n_classes == 1:
         #build np volume and confusion matrix
@@ -116,4 +131,4 @@ def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
         for m in metrics.ALL_METRICS.keys():
             logging.info(f'{m}: {round(metrics.ALL_METRICS[m](confusion_matrix=cm), 3)}')
 
-    return
+

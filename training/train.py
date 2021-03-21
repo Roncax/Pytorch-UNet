@@ -79,13 +79,13 @@ def train_net(net,
 
                 masks_pred = net(imgs)
 
-                print(f"image prediction shape: {masks_pred.size()}")
-                print(f"mask shape: {true_masks.size()}")
-                print(masks_pred)
-                print(f"mask shape: {true_masks.squeeze(1).size()}")
+                # print(f"image img shape: {imgs.size()}")
+                # print(f"image prediction shape: {masks_pred.size()}")
+                # print(f"mask shape: {true_masks.size()}")
+                # print(masks_pred)
+                # print(f"mask shape: {true_masks.squeeze(1).size()}")
 
                 torch.set_printoptions(threshold=10_000)
-                print(true_masks)
 
                 loss = criterion(masks_pred, true_masks.squeeze(1))
                 epoch_loss += loss.item()

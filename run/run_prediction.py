@@ -9,8 +9,8 @@ def predict_total():
     model = paths.dir_pretrained_model
     scale = 1
     mask_threshold = 0.4
-    save = True
-    viz = True
+    save = False
+    viz = False
 
     net = UNet(n_channels=1, n_classes=7)
 

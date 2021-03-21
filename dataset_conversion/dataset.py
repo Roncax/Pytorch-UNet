@@ -1,9 +1,12 @@
+import json
 import os
+
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 import logging
 from PIL import Image
-from preprocessing.scale import scale_img
+from preprocessing.scale import scale_img, scale_mask
 
 
 class BasicDataset(Dataset):
@@ -24,6 +27,8 @@ class BasicDataset(Dataset):
         mask_file = os.path.join(self.masks_dir, idx)
         img_file = os.path.join(self.imgs_dir, idx)
 
+
+
         mask = Image.open(mask_file)
         img = Image.open(img_file)
 
@@ -31,7 +36,16 @@ class BasicDataset(Dataset):
             f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
 
         img = scale_img(img, self.scale)
-        mask = scale_img(mask, self.scale)
+        mask = scale_mask(mask, self.scale)
+
+
+        with open('/home/roncax/Git/Pytorch-UNet/organs_map.json') as f:
+            mask_dict = json.load(f)
+
+        for key in mask_dict:
+            label = mask_dict[key]
+            tst = np.copy(mask)
+            tst[mask != label] = 0
 
 
         return {
