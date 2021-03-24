@@ -6,15 +6,15 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-from torchvision import transforms
-from utilities.data_vis import plot_img_and_mask
-from dataset_conversion.structseg2019_load import img2gif
+from utilities.data_vis import plot_img_and_mask, img2gif
 import paths
 from utilities.various import check_create_dir, build_np_volume
 from preprocessing.scale import scale_img
 from evaluation.metrics import ConfusionMatrix
 import evaluation.metrics as metrics
 import matplotlib.pyplot as plt
+from sklearn import preprocessing
+from matplotlib import cm
 
 
 def predict_img(net,
@@ -52,24 +52,42 @@ def predict_img(net,
 
 
 def mask_to_image(mask):
-    with open('/home/roncax/Git/Pytorch-UNet/organs_map.json') as f:
-        mask_dict = json.load(f)
+    cm = {
+        0: [75, 54, 95],
+        1: [153, 255, 102],
+        2: [0, 128, 255],
+        3: [255, 0, 0],
+        4: [172, 88, 193],
+        5: [216, 228, 111],
+        6: [255, 255, 255]
+    }
 
-    img = np.zeros((512, 512))
-    for i, m in enumerate(mask):
-        # print(f'MASK: {m.shape}')
-        img[m == True] = i
-        # plt.imshow(Image.fromarray((m * 255).astype(np.uint8)))
-        # plt.title(mask_dict[f'{i}'])
-        # plt.show()
+    finalmask3D = np.empty(shape=(512, 512, 3))
+    finalmask_r = np.empty(shape=(512, 512))
+    finalmask_g = np.empty(shape=(512, 512))
+    finalmask_b = np.empty(shape=(512, 512))
 
-    return Image.fromarray(img.astype(np.uint8))
+    with open(paths.json_file) as f:
+        mask_dict = json.load(f)["labels"]
+
+    for i in range(len(mask_dict)):
+        finalmask_r[mask[i]] = cm[i][0]
+        finalmask_g[mask[i]] = cm[i][1]
+        finalmask_b[mask[i]] = cm[i][2]
+
+    finalmask3D[:, :, 0] = finalmask_r
+    finalmask3D[:, :, 1] = finalmask_g
+    finalmask3D[:, :, 2] = finalmask_b
+
+    plt.imshow(Image.fromarray(finalmask3D.astype(np.uint8)))
+    plt.show()
+
+    return Image.fromarray(finalmask3D.astype(np.uint8))
 
 
 def get_output_filenames_code(path, out_path):
     out_files = []
     input_files = os.listdir(path)
-
     check_create_dir(out_path)
 
     for f in input_files:
@@ -87,6 +105,9 @@ def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
     out_files = get_output_filenames_code(path_in, path_out)
     in_files = os.listdir(path_in)
 
+    with open(paths.json_file) as f:
+        mask_dict = json.load(f)["labels"]
+
     t0 = time.time()
     for i, fn in enumerate(in_files):
         img = Image.open(os.path.join(path_in, fn))
@@ -98,22 +119,21 @@ def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
                            out_threshold=mask_threshold,
                            device=device)
 
+
         if save:
             mask = np.array(mask).astype(np.bool)
             result = mask_to_image(mask)
             result.save(out_files[i])
 
         if viz:
-            plot_img_and_mask(img, mask, ground_truth=gt_mask, fig_name=fn, patient_name=patient)
+            mask = np.array(mask).astype(np.bool)
+            plot_img_and_mask(img, mask_to_image(mask), ground_truth=gt_mask, fig_name=fn, patient_name=patient)
     if viz:
         img2gif(png_dir=f"{paths.dir_plot_saves}/{patient}",
                 target_folder=paths.dir_predicted_gifs,
                 out_name=f"{patient}")
 
-    with open('/home/roncax/Git/Pytorch-UNet/organs_map.json') as f:
-        mask_dict = json.load(f)
-
-        # build np volume and confusion matrix
+    # build np volume and confusion matrix
     patient_volume = build_np_volume(dir=os.path.join(paths.dir_mask_prediction, patient))
     gt_volume = build_np_volume(dir=os.path.join(paths.dir_test_GTimg, patient))
     for key in mask_dict:

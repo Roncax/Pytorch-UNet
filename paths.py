@@ -12,12 +12,12 @@ dir_processed_data = f'{dir_root}/data/databases/processed_data'
 # raw
 db_name = 'StructSeg2019_Task3_Thoracic_OAR'
 dir_raw_db = f'{dir_raw_data}/{db_name}'
+json_file = f'{dir_raw_db}/dataset.json'
 
 # train
 dir_db = f'{dir_processed_data}/{db_name}'
-dir_decompressed_imgs = f'{dir_db}/train'
-dir_train_imgs = f'{dir_decompressed_imgs}/images'
-dir_train_masks = f'{dir_decompressed_imgs}/masks'
+dir_train_imgs = f'{dir_db}/train/images'
+dir_train_masks = f'{dir_db}/train/masks'
 
 # test
 dir_test = f'{dir_db}/tests'
@@ -35,7 +35,6 @@ check_create_dir(dir_checkpoint)
 check_create_dir(dir_tensorboard_runs)
 check_create_dir(dir_processed_data)
 check_create_dir(dir_db)
-check_create_dir(dir_decompressed_imgs)
 check_create_dir(dir_train_imgs)
 check_create_dir(dir_train_masks)
 check_create_dir(dir_test)
