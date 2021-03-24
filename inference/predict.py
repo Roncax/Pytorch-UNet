@@ -27,13 +27,12 @@ def predict_img(net,
 
     img = img.unsqueeze(0)
     img = img.to(device=device, dtype=torch.float32)
-    print(f"IMG: {img.shape}")
 
     with torch.no_grad():
         output = net(img)
 
         if net.n_classes > 1:
-            probs = F.softmax(output, dim=1) #prob from 0 to 1 (dim = masks)
+            probs = F.softmax(output, dim=1)  # prob from 0 to 1 (dim = masks)
         else:
             probs = torch.sigmoid(output)
         probs = probs.squeeze(0)
@@ -46,7 +45,7 @@ def predict_img(net,
         #     ]
         # )
 
-        #probs = tf(probs.cpu())
+        # probs = tf(probs.cpu())
         full_mask = probs.squeeze().cpu().numpy()
 
     return full_mask > out_threshold
@@ -55,14 +54,16 @@ def predict_img(net,
 def mask_to_image(mask):
     with open('/home/roncax/Git/Pytorch-UNet/organs_map.json') as f:
         mask_dict = json.load(f)
-    print(f"MASK TO IMAGE: {mask.shape}")
+
+    img = np.zeros((512, 512))
     for i, m in enumerate(mask):
+        # print(f'MASK: {m.shape}')
+        img[m == True] = i
+        # plt.imshow(Image.fromarray((m * 255).astype(np.uint8)))
+        # plt.title(mask_dict[f'{i}'])
+        # plt.show()
 
-        plt.imshow(Image.fromarray((m * 255).astype(np.uint8)))
-        plt.title(mask_dict[f'{i}'])
-        plt.show()
-
-    #return Image.fromarray((mask * 255).astype(np.uint8))
+    return Image.fromarray(img.astype(np.uint8))
 
 
 def get_output_filenames_code(path, out_path):
@@ -97,16 +98,10 @@ def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
                            out_threshold=mask_threshold,
                            device=device)
 
-        mask_to_image(mask)
-        plt.imshow(gt_mask)
-        plt.show()
         if save:
             mask = np.array(mask).astype(np.bool)
-            print(mask.shape)
-            gt_mask = np.array(gt_mask).astype(np.bool)
-            print(gt_mask.shape)
             result = mask_to_image(mask)
-            #result.save(out_files[i])
+            result.save(out_files[i])
 
         if viz:
             plot_img_and_mask(img, mask, ground_truth=gt_mask, fig_name=fn, patient_name=patient)
@@ -115,20 +110,24 @@ def predict_patient(scale, mask_threshold, save, viz, patient, net, device):
                 target_folder=paths.dir_predicted_gifs,
                 out_name=f"{patient}")
 
-    #for m in mask:
+    with open('/home/roncax/Git/Pytorch-UNet/organs_map.json') as f:
+        mask_dict = json.load(f)
 
+        # build np volume and confusion matrix
+    patient_volume = build_np_volume(dir=os.path.join(paths.dir_mask_prediction, patient))
+    gt_volume = build_np_volume(dir=os.path.join(paths.dir_test_GTimg, patient))
+    for key in mask_dict:
+        patient_volume_cp = np.zeros(shape=patient_volume.shape)
+        patient_volume_cp[patient_volume == float(key)] = 1
+        gt_volume_cp = np.zeros(shape=gt_volume.shape)
+        gt_volume_cp[gt_volume == float(key)] = 1
 
-    if net.n_classes == 1:
-        #build np volume and confusion matrix
-        patient_volume = build_np_volume(dir=os.path.join(paths.dir_test_GTimg, patient))
-        gt_volume = build_np_volume(dir=os.path.join(paths.dir_mask_prediction, patient))
-        cm = ConfusionMatrix(test=patient_volume, reference=gt_volume)
+        cm = ConfusionMatrix(test=patient_volume_cp, reference=gt_volume_cp)
 
-        # print results
         logging.info(
             f"Inference time for {len(in_files)} ({patient}) images: {round(time.time() - t0, 4)} - mean time: {round((time.time() - t0) / len(in_files), 4)}")
+        logging.info(f"Metrics for {mask_dict[key]}")
 
-        for m in metrics.ALL_METRICS.keys():
-            logging.info(f'{m}: {round(metrics.ALL_METRICS[m](confusion_matrix=cm), 3)}')
-
-
+        logging.info(f'Dice: {metrics.ALL_METRICS["Dice"](confusion_matrix=cm)}')
+        # for m in metrics.ALL_METRICS.keys():
+        #     logging.info(f'{m}: {round(metrics.ALL_METRICS[m](confusion_matrix=cm), 3)}')

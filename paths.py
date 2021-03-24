@@ -28,7 +28,7 @@ dir_mask_prediction = f'{dir_test}/mask_prediction'
 dir_plot_saves = f'{dir_test}/plt_save'
 
 ## Model
-dir_pretrained_model = f'{dir_checkpoint}/2021-03-21 15:31:56.141507_CP_EPOCH0-LR(0.0001)_BS(1)_SCALE(1)_EPOCHS(1_VAL_LOSS(524.6329838037491).pth'
+dir_pretrained_model = f'{dir_checkpoint}/2021-03-23 22:00:11.075455_CP-EPOCH(17)_LR(0.0001)_BS(1)_SCALE(1)_EPOCHS(100_VAL_LOSS(0.0060957286038465916).pth'
 
 
 check_create_dir(dir_checkpoint)

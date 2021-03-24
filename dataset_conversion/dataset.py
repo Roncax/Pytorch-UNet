@@ -1,7 +1,4 @@
-import json
 import os
-
-import numpy as np
 import torch
 from torch.utils.data import Dataset
 import logging
@@ -27,8 +24,6 @@ class BasicDataset(Dataset):
         mask_file = os.path.join(self.masks_dir, idx)
         img_file = os.path.join(self.imgs_dir, idx)
 
-
-
         mask = Image.open(mask_file)
         img = Image.open(img_file)
 
@@ -37,16 +32,6 @@ class BasicDataset(Dataset):
 
         img = scale_img(img, self.scale)
         mask = scale_mask(mask, self.scale)
-
-
-        with open('/home/roncax/Git/Pytorch-UNet/organs_map.json') as f:
-            mask_dict = json.load(f)
-
-        for key in mask_dict:
-            label = mask_dict[key]
-            tst = np.copy(mask)
-            tst[mask != label] = 0
-
 
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),

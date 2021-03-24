@@ -12,15 +12,16 @@ from torchsummary import summary
 
 if __name__ == '__main__':
 
-    load = False
-    load_dir = ""  # Load model from a .pth file
-    epochs = 1  # Number of epochs
-    batch_size = 1 # Batch size
+    load = True
+    load_dir = paths.dir_pretrained_model  # Load model from a .pth file
+    epochs = 100  # Number of epochs
+    batch_size = 1  # Batch size
     lr = 0.0001  # Learning rate
     scale = 1  # Downscaling factor of the images
-    val = 10.0  # Percent of the databases that is used as validation (0-100)
+    val = 20.0  # Percent of the databases that is used as validation (0-100)
     save_ckps = True
     deterministic = False
+    patience = 5 # =-1 no early stopping
     # TODO
     models = []
     initialization = ''
@@ -29,6 +30,7 @@ if __name__ == '__main__':
     dataset = ''  # vari organi - all
     dropout = ''
     deep_supervision = ''
+    k_folds = 5
 
     # faster convolutions, but more memory
     cudnn.benchmark = True
@@ -45,16 +47,9 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
 
-    # Change here to adapt to your databases
-    # n_channels=3 for RGB images
-    # n_classes is the number of probabilities you want to get per pixel
-    #   - For 1 class and background, use n_classes=1
-    #   - For 2 classes, use n_classes=1
-    #   - For N > 2 classes, use n_classes=N
     net = UNet(n_channels=1, n_classes=7, bilinear=True).cuda()
 
     summary(net, input_size=(1, 512, 512))
-
     logging.info(f'Network:\n'
                  f'\t{net.n_channels} input channels\n'
                  f'\t{net.n_classes} output channels (classes)\n'
@@ -76,7 +71,7 @@ if __name__ == '__main__':
                   device=device,
                   img_scale=scale,
                   val_percent=val / 100,
-                  save_cp=save_ckps)
+                  save_cp=save_ckps, patience=patience, k_folds=k_folds)
 
     except KeyboardInterrupt:
         torch.save(obj=net.state_dict(), f=f'{paths.dir_checkpoint}/{datetime.now()}_INTERRUPTED.pth')
