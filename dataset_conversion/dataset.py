@@ -1,9 +1,12 @@
+import json
 import os
 import torch
 from torch.utils.data import Dataset
 import logging
 from PIL import Image
-from preprocessing.scale import scale_img, scale_mask
+
+import paths
+from preprocessing.scale import prepare_img, prepare_mask
 
 
 class BasicDataset(Dataset):
@@ -12,6 +15,10 @@ class BasicDataset(Dataset):
         self.masks_dir = masks_dir
         self.scale = scale
         assert 0 < scale <= 1, 'Scale must be between 0 and 1'
+
+        self.dataset_parameters = json.load(open(paths.json_file))
+        self.dataset_parameters["experiments"] += 1
+        json.dump(self.dataset_parameters, open(paths.json_file, "w"))
 
         self.ids = [name for name in os.listdir(imgs_dir)]
         logging.info(f'Creating dataset with {len(self.ids)} examples')
@@ -30,8 +37,9 @@ class BasicDataset(Dataset):
         assert img.size == mask.size, \
             f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
 
-        img = scale_img(img, self.scale)
-        mask = scale_mask(mask, self.scale)
+        img = prepare_img(img, self.scale)
+        mask = prepare_mask(mask, self.scale)
+
 
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),

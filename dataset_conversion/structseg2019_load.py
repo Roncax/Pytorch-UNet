@@ -1,21 +1,21 @@
 import json
 import os
-
+import random
 import cv2
 import numpy as np
 from nibabel import load as load_nii
 
 import paths
-from utilities.various import check_create_dir
+from preprocessing.ct_levels_enhance import setDicomWinWidthWinCenter
 
+dataset_parameters = json.load(open(paths.json_file))
 
-with open(paths.json_file) as f:
-    test_list = json.load(f)["test"]
 
 # read and decode a .nii file
 def read_nii(path):
     img = load_nii(path).get_fdata()
-    img = setDicomWinWidthWinCenter(img, winwidth=1800, wincenter=-500)  # liver 300 -20
+    img = setDicomWinWidthWinCenter(img, winwidth=dataset_parameters['CTwindow_width']['coarse'],
+                                    wincenter=dataset_parameters['CTwindow_level']['coarse'])
     img = np.uint8(img)
     return img
 
@@ -23,15 +23,15 @@ def read_nii(path):
 # load all labels in path from a  .nii
 def nii2label(nii_root, root_path):
     names = [name for name in os.listdir(nii_root)]
-    check_create_dir(root_path)
+    os.makedirs(root_path, exist_ok=True)
 
     for name in names:
         nii_path = os.path.join(nii_root, name)
 
         target_path = root_path
-        if name in test_list:
+        if name in dataset_parameters['test']:
             target_path = f'{paths.dir_test_GTimg}/patient_{name}'
-            check_create_dir(target_path)
+            os.makedirs(target_path)
 
         label_array = np.uint8(load_nii(f'{nii_path}/label.nii').get_fdata())
 
@@ -53,40 +53,34 @@ def nii2label(nii_root, root_path):
 # load all images in path from a  .nii
 def nii2img(nii_root, root_path):
     names = [name for name in os.listdir(nii_root)]
-    check_create_dir(root_path)
+
+    os.makedirs(root_path)
 
     for name in names:
         nii_path = os.path.join(nii_root, name)
 
         target_path = root_path
-        if name in test_list:
+        if name in dataset_parameters['test']:
             target_path = f'{paths.dir_test_img}/patient_{name}'
-            check_create_dir(target_path)
+            os.makedirs(target_path)
 
         image_array = read_nii(os.path.join(nii_path, "data.nii"))
-        print(f"{name}: {image_array.shape}")
         for n in range(image_array.shape[2]):
             cv2.imwrite(os.path.join(target_path, f"patient_{name}_" + 'img{:0>3d}.png'.format(n + 1)),
                         image_array[:, :, n])
 
 
-def setDicomWinWidthWinCenter(img_data, winwidth, wincenter):
-    img_temp = img_data
-    min = (2 * wincenter - winwidth) / 2.0 + 0.5
-    max = (2 * wincenter + winwidth) / 2.0 + 0.5
-    dFactor = 255.0 / (max - min)
-
-    img_temp = (img_temp - min) * dFactor
-
-    min_index = img_temp < 0
-    img_temp[min_index] = 0
-    max_index = img_temp > 255
-    img_temp[max_index] = 255
-
-    return img_temp
+def random_split_test(dir):
+    names = [name for name in os.listdir(dir)]
+    # choose random test images and populate the json file
+    test_img = random.sample(names, dataset_parameters['numTest'])
+    dataset_parameters['test'] = test_img
+    dataset_parameters['train'] = [item for item in names if not item in test_img]
+    assert len(dataset_parameters['train']) == dataset_parameters['numTraining'], f'Invalid number of train items'
+    json.dump(dataset_parameters, open(paths.json_file, "w"))
 
 
-def load_all():
+if __name__ == '__main__':
+    random_split_test(dir=paths.dir_raw_db)
     nii2img(nii_root=paths.dir_raw_db, root_path=paths.dir_train_imgs)
     nii2label(nii_root=paths.dir_raw_db, root_path=paths.dir_train_masks)
-

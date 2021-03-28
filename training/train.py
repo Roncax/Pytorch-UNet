@@ -1,15 +1,11 @@
 import logging
-import os
 import torch
 import torch.nn as nn
 from torch import optim
 from tqdm import tqdm
-from datetime import datetime
-from torch.utils.tensorboard import SummaryWriter
 from dataset_conversion.dataset import BasicDataset
 from torch.utils.data import DataLoader, random_split
 import paths
-import numpy as np
 from evaluation import eval
 
 from training.early_stopping import EarlyStopping
@@ -31,15 +27,12 @@ def train_net(net,
               loss_mode,
               val_round):
     global_step = 0
-    loss_min = np.inf
-
-    board = Board(lr=lr, batch_size=batch_size, img_scale=img_scale, epochs=epochs)  # for tensorboard viz
-
     optimizer = build_optimizer(mode=optimizer_mode, net=net, lr=lr)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min' if net.n_classes > 1 else 'max',
                                                      patience=2)
     criterion = build_loss_criterion(loss_mode, net)
-    early_stopping = EarlyStopping(patience=patience, verbose=True)  # initialize the early_stopping object
+    early_stopping = EarlyStopping(patience=patience, verbose=True,
+                                   path=paths.dir_checkpoint)  # initialize the early_stopping object
 
     # DATASET
     dataset = BasicDataset(paths.dir_train_imgs, paths.dir_train_masks, img_scale)
@@ -49,6 +42,9 @@ def train_net(net,
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True,
                             drop_last=True)
+
+    tsboard = Board(dataset_parameters=dataset.dataset_parameters, net=net,
+                    path=paths.dir_tensorboard_runs)  # for tensorboard viz
 
     logging.info(f'''Starting:
         Epochs:          {epochs}
@@ -61,6 +57,7 @@ def train_net(net,
         Images scaling:  {img_scale}
     ''')
 
+    breaker = False  # used for early stopping
     # main loop
     for epoch in range(epochs):
         net.train()  # net in train mode
@@ -84,7 +81,7 @@ def train_net(net,
 
                 loss = criterion(masks_pred, true_masks.squeeze(1))
 
-                board.add_train_values(loss.item(), global_step)
+                tsboard.add_train_values(loss.item(), global_step)
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -93,34 +90,40 @@ def train_net(net,
 
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
                 pbar.update(imgs.shape[0])  # update the pbar by number of imgs in batch
-
                 global_step += 1
 
                 # validation
-                if global_step % (len(train) * val_round) == 0:
-                    loss_val = eval.eval_net(net, val_loader, device)
+                if global_step % int(len(train) * val_round) == 0:
+                    loss_val = eval.eval_train(net, val_loader, device)
                     scheduler.step(loss_val)
 
-                    board.add_validation_values(net=net, global_step=global_step, loss_val=loss_val,
-                                                optimized_lr=optimizer.param_groups[0]['lr'], imgs=imgs,
-                                                true_masks=true_masks, masks_pred=masks_pred)
+                    tsboard.add_validation_values(net=net, global_step=global_step, loss_val=loss_val,
+                                                  optimized_lr=optimizer.param_groups[0]['lr'], imgs=imgs)
 
                     # early_stopping needs the validation loss to check if it has decresed,
                     # and if it has, it will make a checkpoint of the current model
                     if patience != -1:
-                        f = f'{paths.dir_checkpoint}/{datetime.now()}_CP-EPOCH({epoch})_LR({lr})_BS({batch_size})_SCALE({img_scale})_EPOCHS({epochs}_VAL_LOSS({loss_val}).pth'
-                        early_stopping(loss_val, net, path=f)
+                        early_stopping(loss_val, net, path=paths.dir_checkpoint, ds=dataset.dataset_parameters,
+                                       train_loss=loss, loss_mode=loss_mode, optimizer=optimizer, epoch=epoch)
 
                         if early_stopping.early_stop:
                             print(f"Early stopping on epoch: {epoch}")
+                            breaker = True
                             break
 
-                    elif save_cp:
-                        if loss_val < loss_min:
-                            loss_min = loss_val
-                            torch.save(obj=net.state_dict(),
-                                       f=f'{paths.dir_checkpoint}/{datetime.now()}_CP-EPOCH({epoch})_LR({lr})_BS({batch_size})_SCALE({img_scale})_EPOCHS({epochs}_VAL_LOSS({loss_val}).pth')
-                            logging.info(f'Checkpoint {epoch} saved! Current loss: {loss_val} - Min loss: {loss_min}')
-
-        board.add_epoch_results(net=net, global_step=global_step)
-    board.writer.close()
+                    else:
+                        torch.save({'model_state_dict': net.state_dict(),
+                                    'train_loss': loss,
+                                    'val_loss': loss_val,
+                                    'loss_mode': loss_mode,
+                                    'optimizer_state_dict': optimizer.state_dict()},
+                                   f=f'{paths.dir_checkpoint}/'
+                                     f'Dataset({dataset.dataset_parameters["name"]})'
+                                     f'_Model({net.name})'
+                                     f'_Experiment({dataset.dataset_parameters["experiments"]})'
+                                     f'_Epoch({epoch}).pth')
+        # needed for early stopping
+        if breaker:
+            break
+        tsboard.add_epoch_results(net=net, global_step=global_step)
+    tsboard.writer.close()

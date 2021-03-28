@@ -1,45 +1,35 @@
-from utilities.various import check_create_dir
+import os
 
 dir_root = '/home/roncax/Git/Pytorch-UNet'
 
 dir_checkpoint = f'{dir_root}/data/checkpoints'
 dir_tensorboard_runs = f'{dir_root}/data/runs'
 
-dir_raw_data = f'{dir_root}/data/databases/raw_data'
-dir_processed_data = f'{dir_root}/data/databases/processed_data'
+#the only 2 string to modify:
+db_name = "StructSeg2019_Task3_Thoracic_OAR"  # only this to change DB to use
+model_ckpt = "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet)_Experiment(2)_Epoch(20).pth"
 
 # Database to analyze
 # raw
-db_name = 'StructSeg2019_Task3_Thoracic_OAR'
-dir_raw_db = f'{dir_raw_data}/{db_name}'
-json_file = f'{dir_raw_db}/dataset.json'
+dir_database = f'{dir_root}/data/databases/{db_name}'
+dir_raw_db = f'{dir_database}/raw_data'
+dir_processed_db = f'{dir_database}/processed_data'
+json_file = f'{dir_database}/{db_name}.json'
 
 # train
-dir_db = f'{dir_processed_data}/{db_name}'
-dir_train_imgs = f'{dir_db}/train/images'
-dir_train_masks = f'{dir_db}/train/masks'
+dir_train_imgs = f'{dir_processed_db}/train/images'
+dir_train_masks = f'{dir_processed_db}/train/masks'
 
 # test
-dir_test = f'{dir_db}/tests'
+dir_test = f'{dir_processed_db}/tests'
 dir_predicted_gifs = f'{dir_test}/gifs'
 dir_test_img = f'{dir_test}/img'
 dir_test_GTimg = f'{dir_test}/img_gt'
 dir_mask_prediction = f'{dir_test}/mask_prediction'
 dir_plot_saves = f'{dir_test}/plt_save'
+dir_plot_metrics = f'{dir_test}/metrics'
 
 ## Model
-dir_pretrained_model = f'{dir_checkpoint}/2021-03-23 22:00:11.075455_CP-EPOCH(17)_LR(0.0001)_BS(1)_SCALE(1)_EPOCHS(100_VAL_LOSS(0.0060957286038465916).pth'
+dir_pretrained_model = f'{dir_checkpoint}/{model_ckpt}'
 
-
-check_create_dir(dir_checkpoint)
-check_create_dir(dir_tensorboard_runs)
-check_create_dir(dir_processed_data)
-check_create_dir(dir_db)
-check_create_dir(dir_train_imgs)
-check_create_dir(dir_train_masks)
-check_create_dir(dir_test)
-check_create_dir(dir_predicted_gifs)
-check_create_dir(dir_test_img)
-check_create_dir(dir_test_GTimg)
-check_create_dir(dir_mask_prediction)
-check_create_dir(dir_plot_saves)
+os.makedirs(dir_predicted_gifs, exist_ok=True)

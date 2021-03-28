@@ -1,8 +1,10 @@
 import numpy as np
 import torch
 
+
 class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""
+
     def __init__(self, patience=7, verbose=False, delta=0, path='checkpoint.pt', trace_func=print):
         """
         Args:
@@ -22,18 +24,19 @@ class EarlyStopping:
         self.counter = 0
         self.best_score = None
         self.early_stop = False
-        self.val_loss_min = np.Inf
+        self.loss_val_min = np.Inf
         self.delta = delta
         self.path = path
         self.trace_func = trace_func
-    def __call__(self, val_loss, model, path):
+
+    def __call__(self, loss_val, model, path, ds, train_loss, loss_mode, optimizer, epoch):
         self.path = path
 
-        score = -val_loss
+        score = -loss_val
 
         if self.best_score is None:
             self.best_score = score
-            self.save_checkpoint(val_loss, model)
+            self.save_checkpoint(loss_val=loss_val, net=model, dataset_parameters=ds, loss_mode=loss_mode, loss=train_loss, optimizer=optimizer, epoch=epoch)
         elif score < self.best_score + self.delta:
             self.counter += 1
             self.trace_func(f'EarlyStopping counter: {self.counter} out of {self.patience}')
@@ -41,12 +44,24 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_score = score
-            self.save_checkpoint(val_loss, model)
+            self.save_checkpoint(loss_val, model, loss_mode=loss_mode, loss=train_loss, optimizer=optimizer, dataset_parameters=ds, epoch=epoch)
             self.counter = 0
 
-    def save_checkpoint(self, val_loss, model):
+    def save_checkpoint(self, loss_val, net, loss, loss_mode, optimizer, dataset_parameters, epoch):
         '''Saves model when validation loss decrease.'''
         if self.verbose:
-            self.trace_func(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
-        torch.save(model.state_dict(), self.path)
-        self.val_loss_min = val_loss
+            self.trace_func(
+                f'Validation loss decreased ({self.loss_val_min:.6f} --> {loss_val:.6f}).  Saving model ...')
+
+        torch.save({'model_state_dict': net.state_dict(),
+                    'train_loss': loss,
+                    'val_loss': loss_val,
+                    'loss_mode': loss_mode,
+                    'optimizer_state_dict': optimizer.state_dict()},
+                   f=f'{self.path}/'
+                     f'Dataset({dataset_parameters["name"]})'
+                     f'_Model({net.name})'
+                     f'_Experiment({dataset_parameters["experiments"]})'
+                     f'_Epoch({epoch}).pth')
+
+        self.loss_val_min = loss_val

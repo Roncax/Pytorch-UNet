@@ -1,16 +1,13 @@
+import json
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 
 from PIL import Image
 
-
-def check_create_dir(dir_in):
-    if not os.path.exists(dir_in):
-        os.mkdir(dir_in)
-
-
 # return a numpy volume over 1 directory of images (1 patient) - IMAGE MASK
+import paths
+
+
 def build_np_volume(dir):
     #TODO parametric shape
     volume = np.empty(shape=(512, 512, 1))
@@ -24,3 +21,30 @@ def build_np_volume(dir):
 
     return volume
 
+def mask_to_image3D(mask, colormap):
+
+    finalmask3D = np.empty(shape=(512, 512, 3))
+    finalmask_r = np.empty(shape=(512, 512))
+    finalmask_g = np.empty(shape=(512, 512))
+    finalmask_b = np.empty(shape=(512, 512))
+
+    with open(paths.json_file) as f:
+        mask_dict = json.load(f)["labels"]
+
+    for i in range(len(mask_dict)):
+        finalmask_r[mask[i]] = colormap[str(i)][0]
+        finalmask_g[mask[i]] = colormap[str(i)][1]
+        finalmask_b[mask[i]] = colormap[str(i)][2]
+
+    finalmask3D[:, :, 0] = finalmask_r
+    finalmask3D[:, :, 1] = finalmask_g
+    finalmask3D[:, :, 2] = finalmask_b
+
+    return Image.fromarray(finalmask3D.astype(np.uint8))
+
+def mask_to_image1D(mask):
+
+    img = np.zeros((512,512))
+    for i, m in enumerate(mask):
+        img[m]=i
+    return Image.fromarray(img.astype(np.uint8))
