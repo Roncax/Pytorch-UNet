@@ -6,4 +6,5 @@ __pycache__/
 *.nii
 *.dcm
 *.gif
-/data/runs/*
+*.0
+.idea/
