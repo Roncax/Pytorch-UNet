@@ -4,6 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/data/checkpoints" />
       <excludeFolder url="file://$MODULE_DIR$/data/databases" />
+      <excludeFolder url="file://$MODULE_DIR$/data/runs/Classic Unet-StructSeg2019_Task3_Thoracic_OAR-experiment(2).pth" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.8 (thesis)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -5,7 +5,6 @@ from torch import optim
 from tqdm import tqdm
 from dataset_conversion.dataset import BasicDataset
 from torch.utils.data import DataLoader, random_split
-import paths
 from evaluation import eval
 
 from training.early_stopping import EarlyStopping
@@ -25,7 +24,7 @@ def train_net(net,
               patience,
               optimizer_mode,
               loss_mode,
-              val_round):
+              val_round, paths):
     global_step = 0
     optimizer = build_optimizer(mode=optimizer_mode, net=net, lr=lr)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min' if net.n_classes > 1 else 'max',
@@ -35,7 +34,7 @@ def train_net(net,
                                    path=paths.dir_checkpoint)  # initialize the early_stopping object
 
     # DATASET
-    dataset = BasicDataset(paths.dir_train_imgs, paths.dir_train_masks, img_scale)
+    dataset = BasicDataset(paths=paths, scale=img_scale)
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])

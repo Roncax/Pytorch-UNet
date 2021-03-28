@@ -4,7 +4,8 @@ from torch.utils.data import DataLoader
 import paths
 from dataset_conversion.dataset import BasicDataset
 
-dataset = BasicDataset(paths.dir_train_imgs, paths.dir_train_masks, 1)
+paths=paths.Paths(db="SegTHOR")
+dataset = BasicDataset(paths=paths, scale=1)
 
 loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
 

@@ -50,7 +50,7 @@ def eval_train(net, loader, device):
     return 2 * tp / (2 * tp + fp + fn) if net.n_classes == 1 else tot / n_val
 
 
-def eval_inference(patient, mask_dict):
+def eval_inference(patient, mask_dict, paths):
     # build np volume and confusion matrix
     patient_volume = build_np_volume(dir=os.path.join(paths.dir_mask_prediction, patient))
     gt_volume = build_np_volume(dir=os.path.join(paths.dir_test_GTimg, patient))

@@ -1,35 +1,42 @@
 import os
 
-dir_root = '/home/roncax/Git/Pytorch-UNet'
 
-dir_checkpoint = f'{dir_root}/data/checkpoints'
-dir_tensorboard_runs = f'{dir_root}/data/runs'
+# Simple class to store all useful paths
+class Paths:
 
-#the only 2 string to modify:
-db_name = "StructSeg2019_Task3_Thoracic_OAR"  # only this to change DB to use
-model_ckpt = "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet)_Experiment(2)_Epoch(20).pth"
+    def __init__(self, db, model_ckp="") -> None:
+        super().__init__()
 
-# Database to analyze
-# raw
-dir_database = f'{dir_root}/data/databases/{db_name}'
-dir_raw_db = f'{dir_database}/raw_data'
-dir_processed_db = f'{dir_database}/processed_data'
-json_file = f'{dir_database}/{db_name}.json'
+        # the only 2 string to modify:
+        self.db_name = db  # only this to change DB to use
+        self.model_ckt = model_ckp
 
-# train
-dir_train_imgs = f'{dir_processed_db}/train/images'
-dir_train_masks = f'{dir_processed_db}/train/masks'
+        self.dir_root = '/home/roncax/Git/Pytorch-UNet'
 
-# test
-dir_test = f'{dir_processed_db}/tests'
-dir_predicted_gifs = f'{dir_test}/gifs'
-dir_test_img = f'{dir_test}/img'
-dir_test_GTimg = f'{dir_test}/img_gt'
-dir_mask_prediction = f'{dir_test}/mask_prediction'
-dir_plot_saves = f'{dir_test}/plt_save'
-dir_plot_metrics = f'{dir_test}/metrics'
+        self.dir_checkpoint = f'{self.dir_root}/data/checkpoints'
+        self.dir_tensorboard_runs = f'{self.dir_root}/data/runs'
 
-## Model
-dir_pretrained_model = f'{dir_checkpoint}/{model_ckpt}'
+        # Database to analyze
+        # raw
+        self.dir_database = f'{self.dir_root}/data/databases/{self.db_name}'
+        self.dir_raw_db = f'{self.dir_database}/raw_data'
+        self.dir_processed_db = f'{self.dir_database}/processed_data'
+        self.json_file = f'{self.dir_database}/{self.db_name}.json'
 
-os.makedirs(dir_predicted_gifs, exist_ok=True)
+        # train
+        self.dir_train_imgs = f'{self.dir_processed_db}/train/images'
+        self.dir_train_masks = f'{self.dir_processed_db}/train/masks'
+
+        # test
+        self.dir_test = f'{self.dir_processed_db}/tests'
+        self.dir_predicted_gifs = f'{self.dir_test}/gifs'
+        self.dir_test_img = f'{self.dir_test}/img'
+        self.dir_test_GTimg = f'{self.dir_test}/img_gt'
+        self.dir_mask_prediction = f'{self.dir_test}/mask_prediction'
+        self.dir_plot_saves = f'{self.dir_test}/plt_save'
+        self.dir_plot_metrics = f'{self.dir_test}/metrics'
+
+        ## Model
+        self.dir_pretrained_model = f'{self.dir_checkpoint}/{self.model_ckt}'
+
+        os.makedirs(self.dir_predicted_gifs, exist_ok=True)

@@ -14,7 +14,7 @@ def prepare_img(pil_img, scale):
 
     # HWC to CHW
     img_trans = img_nd.transpose((2, 0, 1))
-    #img_trans = img_trans / 255
+    img_trans = img_trans / 255
 
     return img_trans.astype(float)
 

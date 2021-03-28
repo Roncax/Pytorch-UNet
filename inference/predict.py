@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 from utilities.data_vis import save_img_mask_plot, img2gif
-import paths
 from preprocessing.scale import prepare_img
 from evaluation.eval import eval_inference
 from utilities.various import mask_to_image1D, mask_to_image3D
@@ -48,7 +47,7 @@ def get_output_filenames_code(path, out_path):
     return out_files
 
 
-def predict_patient(scale, mask_threshold, viz, patient, net, device):
+def predict_patient(scale, mask_threshold, viz, patient, net, device, paths):
     path_in = os.path.join(paths.dir_test_img, patient)
     path_out = os.path.join(paths.dir_mask_prediction, patient)
     path_gt = os.path.join(paths.dir_test_GTimg, patient)
@@ -82,5 +81,5 @@ def predict_patient(scale, mask_threshold, viz, patient, net, device):
                 target_folder=paths.dir_predicted_gifs,
                 out_name=f"{patient}")
 
-    organ_results = eval_inference(patient=patient, mask_dict=mask_dict)
+    organ_results = eval_inference(patient=patient, mask_dict=mask_dict, paths=paths)
     return organ_results

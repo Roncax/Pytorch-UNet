@@ -1,0 +1,144 @@
+{
+  "name": "StructSeg2019_Task3_Thoracic_OAR",
+  "description": "Chest CT from Structseg 2019 challenge",
+  "release": "2019",
+  "tensorImageSize": [
+    1,
+    512,
+    512
+  ],
+  "modality": {
+    "0": "CT"
+  },
+  "labels": {
+    "0": "Bg",
+    "1": "RightLung",
+    "2": "LeftLung",
+    "3": "Heart",
+    "4": "Trachea",
+    "5": "Esophagus",
+    "6": "SpinalCord"
+  },
+  "colormap": {
+    "0": [
+      75,
+      54,
+      95
+    ],
+    "1": [
+      153,
+      255,
+      102
+    ],
+    "2": [
+      0,
+      128,
+      255
+    ],
+    "3": [
+      255,
+      0,
+      0
+    ],
+    "4": [
+      172,
+      88,
+      193
+    ],
+    "5": [
+      216,
+      228,
+      111
+    ],
+    "6": [
+      255,
+      255,
+      255
+    ]
+  },
+  "weights": {
+  "LeftLung":100,
+  "RightLung":100,
+  "Heart":100,
+  "Esophagus":80,
+  "Trachea":70,
+  "SpinalCord":100,
+  },
+  "CTwindow_level": {
+    "coarse": -500,
+    "LeftLung": -500,
+    "RightLung": -500,
+    "Heart": 30,
+    "Esophagus": 85,
+    "Trachea": -440,
+    "SpinalCord": 0
+  },
+  "CTwindow_width": {
+    "coarse": 1800,
+    "LeftLung": 1800,
+    "RightLung": 1800,
+    "Heart": 350,
+    "Esophagus": 324,
+    "Trachea": 1180,
+    "SpinalCord": 600
+  },
+  "numTraining": 40,
+  "numTest": 10,
+  "test": [
+    "12",
+    "42",
+    "5",
+    "17",
+    "39",
+    "10",
+    "4",
+    "31",
+    "49",
+    "45"
+  ],
+  "experiments": 3,
+  "train": [
+    "37",
+    "14",
+    "50",
+    "46",
+    "35",
+    "30",
+    "32",
+    "8",
+    "26",
+    "22",
+    "18",
+    "40",
+    "27",
+    "16",
+    "36",
+    "20",
+    "23",
+    "19",
+    "15",
+    "3",
+    "44",
+    "13",
+    "21",
+    "6",
+    "48",
+    "41",
+    "1",
+    "38",
+    "43",
+    "9",
+    "28",
+    "24",
+    "47",
+    "11",
+    "7",
+    "29",
+    "33",
+    "2",
+    "25",
+    "34"
+  ],
+  "mean": 78.97051239013672,
+  "std": 42.694644927978516
+}

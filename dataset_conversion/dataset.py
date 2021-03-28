@@ -4,15 +4,13 @@ import torch
 from torch.utils.data import Dataset
 import logging
 from PIL import Image
-
-import paths
 from preprocessing.scale import prepare_img, prepare_mask
 
 
 class BasicDataset(Dataset):
-    def __init__(self, imgs_dir, masks_dir, scale):
-        self.imgs_dir = imgs_dir
-        self.masks_dir = masks_dir
+    def __init__(self, scale, paths):
+        self.imgs_dir = paths.dir_train_imgs
+        self.masks_dir = paths.dir_train_masks
         self.scale = scale
         assert 0 < scale <= 1, 'Scale must be between 0 and 1'
 
@@ -20,7 +18,7 @@ class BasicDataset(Dataset):
         self.dataset_parameters["experiments"] += 1
         json.dump(self.dataset_parameters, open(paths.json_file, "w"))
 
-        self.ids = [name for name in os.listdir(imgs_dir)]
+        self.ids = [name for name in os.listdir(self.imgs_dir)]
         logging.info(f'Creating dataset with {len(self.ids)} examples')
 
     def __len__(self):

@@ -4,7 +4,6 @@ import random
 import cv2
 import numpy as np
 from nibabel import load as load_nii
-
 from preprocessing.ct_levels_enhance import setDicomWinWidthWinCenter
 
 
@@ -27,23 +26,14 @@ def nii2label(nii_root, root_path, dataset_parameters, paths):
 
         target_path = root_path
         if name in dataset_parameters['test']:
-            target_path = f'{paths.dir_test_GTimg}/patient_{name}'
-            os.makedirs(target_path)
+            target_path = f'{paths.dir_test_GTimg}/{name}'
+            os.makedirs(target_path, exist_ok=True)
 
-        label_array = np.uint8(load_nii(f'{nii_path}/label.nii').get_fdata())
-
-        # organs = ['Bg', 'RightLung', 'LeftLung', 'Heart', 'Trachea', 'Esophagus', 'SpinalCord']
-        # label_array[label_array == 0] = 0
-        # label_array[label_array == 1] = 1
-        # label_array[label_array == 2] = 2
-        # label_array[label_array == 3] = 3
-        # label_array[label_array == 4] = 4
-        # label_array[label_array == 5] = 5
-        # label_array[label_array == 6] = 6
+        label_array = np.uint8(load_nii(f'{nii_path}/GT.nii').get_fdata())
 
         # save labels with patient's number
         for n in range(label_array.shape[2]):
-            cv2.imwrite(os.path.join(target_path, f"patient_{name}_" + 'img{:0>3d}.png'.format(n + 1)),
+            cv2.imwrite(os.path.join(target_path, f"{name}_" + 'img{:0>3d}.png'.format(n + 1)),
                         label_array[:, :, n])
 
 
@@ -51,19 +41,19 @@ def nii2label(nii_root, root_path, dataset_parameters, paths):
 def nii2img(nii_root, root_path, dataset_parameters, paths):
     names = [name for name in os.listdir(nii_root)]
 
-    os.makedirs(root_path)
+    os.makedirs(root_path, exist_ok=True)
 
     for name in names:
         nii_path = os.path.join(nii_root, name)
 
         target_path = root_path
         if name in dataset_parameters['test']:
-            target_path = f'{paths.dir_test_img}/patient_{name}'
-            os.makedirs(target_path)
+            target_path = f'{paths.dir_test_img}/{name}'
+            os.makedirs(target_path, exist_ok=True)
 
-        image_array = read_nii(os.path.join(nii_path, "data.nii"), dataset_parameters=dataset_parameters)
+        image_array = read_nii(os.path.join(nii_path, f"{name}.nii"), dataset_parameters)
         for n in range(image_array.shape[2]):
-            cv2.imwrite(os.path.join(target_path, f"patient_{name}_" + 'img{:0>3d}.png'.format(n + 1)),
+            cv2.imwrite(os.path.join(target_path, f"{name}_" + 'img{:0>3d}.png'.format(n + 1)),
                         image_array[:, :, n])
 
 
@@ -77,8 +67,9 @@ def random_split_test(dir, dataset_parameters, paths):
     json.dump(dataset_parameters, open(paths.json_file, "w"))
 
 
-def prepare_structseg(paths):
+def prepare_segthor(paths):
     dataset_parameters = json.load(open(paths.json_file))
+
     random_split_test(dir=paths.dir_raw_db, dataset_parameters=dataset_parameters, paths=paths)
     nii2img(nii_root=paths.dir_raw_db, root_path=paths.dir_train_imgs, dataset_parameters=dataset_parameters,
             paths=paths)

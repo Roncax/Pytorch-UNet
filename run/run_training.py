@@ -21,15 +21,15 @@ if __name__ == '__main__':
     save_ckps = True
     deterministic = False  # deterministic results, but slower
     patience = 5  # =-1 no early stopping
-    n_classes = 7
+    n_classes = 5
     models = ["Unet"]
     summary = True  # summary of all the models?
     val_round = 1  # every val_round*train_len images there is a validation round
     loss_mode = "CrossEntropyLoss"
     optimizer_mode = "rmsprop"
+    paths = paths.Paths(db="SegTHOR", model_ckp="")
 
     # TODO add below parameters and logic
-    dataset = ''  # vari organi - all
     dropout = ''
     deep_supervision = ''
 
@@ -63,7 +63,7 @@ if __name__ == '__main__':
                       patience=patience,
                       val_round=val_round,
                       loss_mode=loss_mode,
-                      optimizer_mode=optimizer_mode)
+                      optimizer_mode=optimizer_mode,paths=paths)
 
         except KeyboardInterrupt:
             torch.save(obj=net.state_dict(), f=f'{paths.dir_checkpoint}/{datetime.now()}_INTERRUPTED.pth')
