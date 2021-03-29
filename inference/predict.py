@@ -75,7 +75,7 @@ def predict_patient(scale, mask_threshold, viz, patient, net, device, paths):
         if viz:
             mask = np.array(mask).astype(np.bool)
             colormap = json.load(open(paths.json_file))["colormap"]
-            save_img_mask_plot(img, mask_to_image3D(mask, colormap=colormap), ground_truth=gt_mask, fig_name=fn, patient_name=patient)
+            save_img_mask_plot(img, mask_to_image3D(mask, colormap=colormap,paths=paths), ground_truth=gt_mask, fig_name=fn, patient_name=patient, paths=paths)
     if viz:
         img2gif(png_dir=f"{paths.dir_plot_saves}/{patient}",
                 target_folder=paths.dir_predicted_gifs,

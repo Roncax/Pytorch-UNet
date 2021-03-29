@@ -21,7 +21,7 @@ def build_np_volume(dir):
 
     return volume
 
-def mask_to_image3D(mask, colormap):
+def mask_to_image3D(mask, colormap, paths):
 
     finalmask3D = np.empty(shape=(512, 512, 3))
     finalmask_r = np.empty(shape=(512, 512))

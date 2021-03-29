@@ -8,7 +8,7 @@ from evaluation import metrics
 import paths
 
 
-def save_img_mask_plot(img, mask, ground_truth, fig_name="fig", patient_name="Default"):
+def save_img_mask_plot(img, mask, ground_truth, paths,fig_name="fig", patient_name="Default" ):
     save_path = f"{paths.dir_plot_saves}/{patient_name}/{fig_name}"
     fig, ax = plt.subplots(1, 3)
 
@@ -37,7 +37,7 @@ def img2gif(png_dir, target_folder, out_name):
     imageio.mimsave(target_folder + f"/{out_name}.gif", images)
 
 
-def plot_prediction_result(results, type):
+def plot_prediction_result(results, type, paths):
     fig, ax = plt.subplots()
 
     with open(paths.json_file) as f:
@@ -61,9 +61,9 @@ def plot_prediction_result(results, type):
     plt.show()
 
 
-def plot_all_prediction_result(results, met='all'):
+def plot_all_prediction_result(results, paths, met='all'):
     if met == all:
         met = metrics.ALL_METRICS.keys()
 
     for m in met:
-        plot_prediction_result(results=results, type=m)
+        plot_prediction_result(results=results, type=m, paths=paths)

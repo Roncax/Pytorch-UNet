@@ -6,16 +6,15 @@ from inference.predict import predict_patient
 from training.build_net import build_net
 from utilities.data_vis import plot_all_prediction_result
 
-
 if __name__ == "__main__":
 
-    paths = paths.Paths(db="StructSeg2019_Task3_Thoracic_OAR", model_ckp="Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet)_Experiment(2)_Epoch(20).pth")
+    paths = paths.Paths(db="SegTHOR", model_ckp="Dataset(SegTHOR)_Model(Classic Unet)_Experiment(3)_Epoch(6).pth")
     model = paths.dir_pretrained_model
-    scale = 1 # TODO not working now
+    scale = 1  # TODO not working now
     mask_threshold = 0.5
     viz = True
     input_size = (1, 512, 512)
-    n_classes = 7  # organs+bg
+    n_classes = 5  # organs+bg
     dir_test_img = paths.dir_test_img
     models = ['Unet']
     metrics = ['Dice', 'Jaccard', 'Hausdorff Distance 95', 'Accuracy']
@@ -43,7 +42,4 @@ if __name__ == "__main__":
                                                patient=patient,
                                                net=nets[net],
                                                device=device, paths=paths)
-        plot_all_prediction_result(results, metrics)
-
-
-
+        plot_all_prediction_result(results, paths=paths, met=metrics)
