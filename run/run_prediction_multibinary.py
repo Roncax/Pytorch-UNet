@@ -1,6 +1,8 @@
 import logging
 import os
+
 import torch
+
 import paths
 from inference.predict import predict_patient
 from training.build_net import build_net
@@ -17,7 +19,7 @@ if __name__ == "__main__":
     n_classes = 5  # organs+bg
     dir_test_img = paths.dir_test_img
     models = ['Unet']
-    metrics = ['Dice', 'Jaccard', 'Hausdorff Distance 95', 'Accuracy']
+    metrics = ['Dice', 'Hausdorff Distance 95']
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

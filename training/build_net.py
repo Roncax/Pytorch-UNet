@@ -13,21 +13,17 @@ def set_parameter_requires_grad(model):
 
 
 # create a net for every specified model
-def build_net(models, data_shape, n_classes, sum, device, load=False, load_dir=None, feature_extraction=True, load_nclaasses=None):
-    nets = {}
+def build_net(model, data_shape, n_classes, sum, device, load=False, load_dir=None, feature_extraction=True, load_nclaasses=None):
     switcher = {
         "Unet": build_Unet(data_shape=data_shape, n_classes=n_classes, model="Unet", finetuning=load, load_dir=load_dir,
                            device=device, feature_extraction=feature_extraction, load_nclasses=load_nclaasses)
     }
 
-    for model in models:
-        nets[model] = switcher.get(model)
-        if sum:
-            summary(nets[model], input_size=data_shape)
+    net = switcher.get(model)
+    if sum:
+        summary(net, input_size=data_shape)
 
-    assert (len(nets) > 0), "No models"
-
-    return nets
+    return net
 
 
 def build_Unet(data_shape, n_classes, model, finetuning, load_dir, device, feature_extraction, load_nclasses):

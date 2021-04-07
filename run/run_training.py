@@ -12,7 +12,7 @@ import paths
 
 if __name__ == '__main__':
 
-    load = True
+    load = False
     epochs = 100  # Number of epochs
     batch_size = 1  # Batch size
     lr = 0.0001  # Learning rate
@@ -21,20 +21,17 @@ if __name__ == '__main__':
     save_ckps = True
     deterministic = False  # deterministic results, but slower
     patience = 5  # =-1 no early stopping
-    n_classes = 5 #actual classes
-    models = ["Unet"]
+    binary = True  # want to train multiple binary nets?
+    n_classes = 7  # class number in net -> #classes+1(Bg)
+    model = "Unet"
     summary = True  # summary of all the models?
     val_round = 1  # every val_round*train_len images there is a validation round
-    loss_mode = "CrossEntropyLoss"
+    loss_mode = "BCEWithLogitsLoss"
     optimizer_mode = "rmsprop"
-    paths = paths.Paths(db="SegTHOR", model_ckp="Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet)_Experiment(2)_Epoch(20).pth")
-    load_ckp_classes = 7 #if load checkpoint, specify the old class number
+    paths = paths.Paths(db="StructSeg2019_Task3_Thoracic_OAR",
+                        model_ckp="Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet)_Experiment(2)_Epoch(20).pth")
+    load_ckp_classes = 7  # if load checkpoint, specify the old class number
     in_data_shape = (1, 512, 512)
-
-
-    # TODO add below parameters and logic
-    dropout = ''
-    deep_supervision = ''
 
     cudnn.benchmark = True  # faster convolutions, but more memory
     if deterministic:
@@ -49,13 +46,50 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
 
-    nets = build_net(models, n_classes=n_classes, sum=summary, load=load, load_dir=paths.dir_pretrained_model, device=device,
-                     data_shape=in_data_shape, load_nclaasses=load_ckp_classes)
-
-    # train all the specified nets
-    for net in nets:
+    if binary:
+        param = json.load(open(paths.json_file))["labels"]
+        for i in param:
+            if param[i] == "Bg":
+                continue
+            net = build_net(model,
+                            n_classes=1,
+                            sum=summary,
+                            load=load,
+                            load_dir=paths.dir_pretrained_model,
+                            device=device,
+                            data_shape=in_data_shape,
+                            load_nclaasses=load_ckp_classes)
+            net.name += f" {param[i]}"
+            try:
+                train_net(net=net,
+                          epochs=epochs,
+                          batch_size=batch_size,
+                          lr=lr,
+                          device=device,
+                          img_scale=scale,
+                          val_percent=val,
+                          save_cp=save_ckps,
+                          patience=patience,
+                          val_round=val_round,
+                          loss_mode=loss_mode,
+                          optimizer_mode=optimizer_mode,
+                          paths=paths,
+                          binary_label=i)
+            except KeyboardInterrupt:
+                torch.save(obj=net.state_dict(), f=f'{paths.dir_checkpoint}/{datetime.now()}_INTERRUPTED.pth')
+                logging.info('Saved interrupt')
+                sys.exit(0)
+    else:
+        net = build_net(model,
+                        n_classes=n_classes,
+                        sum=summary,
+                        load=load,
+                        load_dir=paths.dir_pretrained_model,
+                        device=device,
+                        data_shape=in_data_shape,
+                        load_nclaasses=load_ckp_classes)
         try:
-            train_net(net=nets[net],
+            train_net(net=net,
                       epochs=epochs,
                       batch_size=batch_size,
                       lr=lr,
@@ -66,7 +100,8 @@ if __name__ == '__main__':
                       patience=patience,
                       val_round=val_round,
                       loss_mode=loss_mode,
-                      optimizer_mode=optimizer_mode,paths=paths)
+                      optimizer_mode=optimizer_mode,
+                      paths=paths)
 
         except KeyboardInterrupt:
             torch.save(obj=net.state_dict(), f=f'{paths.dir_checkpoint}/{datetime.now()}_INTERRUPTED.pth')

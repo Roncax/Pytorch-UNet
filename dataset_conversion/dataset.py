@@ -1,5 +1,7 @@
 import json
 import os
+
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 import logging
@@ -8,7 +10,8 @@ from preprocessing.scale import prepare_img, prepare_mask
 
 
 class BasicDataset(Dataset):
-    def __init__(self, scale, paths):
+    def __init__(self, scale, paths, binary_label):
+        self.binary_label = binary_label
         self.imgs_dir = paths.dir_train_imgs
         self.masks_dir = paths.dir_train_masks
         self.scale = scale
@@ -37,6 +40,13 @@ class BasicDataset(Dataset):
 
         img = prepare_img(img, self.scale)
         mask = prepare_mask(mask, self.scale)
+
+        if self.binary_label is not None:
+            mask_cp = np.zeros(shape=mask.shape, dtype=int)
+            mask_cp[mask == int(self.binary_label)] = 1
+            #print(f"MASK: {np.unique(mask)} MASK CP: {np.unique(mask_cp)}, {self.binary_label}")
+            mask = mask_cp
+
 
 
         return {

@@ -6,6 +6,7 @@ from tqdm import tqdm
 from dataset_conversion.dataset import BasicDataset
 from torch.utils.data import DataLoader, random_split
 from evaluation import eval
+import numpy as np
 
 from training.early_stopping import EarlyStopping
 from training.build_optimizer import build_optimizer
@@ -24,17 +25,19 @@ def train_net(net,
               patience,
               optimizer_mode,
               loss_mode,
-              val_round, paths):
+              val_round,
+              paths,
+              binary_label=None):
     global_step = 0
     optimizer = build_optimizer(mode=optimizer_mode, net=net, lr=lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min' if net.n_classes > 1 else 'max',
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min',
                                                      patience=2)
     criterion = build_loss_criterion(loss_mode, net)
     early_stopping = EarlyStopping(patience=patience, verbose=True,
                                    path=paths.dir_checkpoint)  # initialize the early_stopping object
 
     # DATASET
-    dataset = BasicDataset(paths=paths, scale=img_scale)
+    dataset = BasicDataset(paths=paths, scale=img_scale, binary_label=binary_label)
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
@@ -46,6 +49,7 @@ def train_net(net,
                     path=paths.dir_tensorboard_runs)  # for tensorboard viz
 
     logging.info(f'''Starting:
+        Net:             {net.name}
         Epochs:          {epochs}
         Batch size:      {batch_size}
         Learning rate:   {lr}
@@ -54,6 +58,8 @@ def train_net(net,
         Checkpoints:     {save_cp}
         Device:          {device.type}
         Images scaling:  {img_scale}
+        Binary:          {binary_label}
+        Patience:        {patience}
     ''')
 
     breaker = False  # used for early stopping
@@ -78,7 +84,7 @@ def train_net(net,
 
                 masks_pred = net(imgs)
 
-                loss = criterion(masks_pred, true_masks.squeeze(1))
+                loss = criterion(masks_pred, true_masks.squeeze(1) if net.n_classes > 2 else true_masks)
 
                 tsboard.add_train_values(loss.item(), global_step)
 

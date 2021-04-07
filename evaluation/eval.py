@@ -35,9 +35,13 @@ def eval_train(net, loader, device):
 
                 else:
                     # Single class evaluation over all validation volume
-                    pred = (pred > 0.5).float()  # 0 or 1 by threeshold
+                    pred = torch.sigmoid(pred)
+                    pred = (pred > 0.5).float() # 0 or 1 by threeshold
+
                     pred = pred.detach().cpu().numpy()
-                    cm = metrics.ConfusionMatrix(test=pred, reference=true_mask)
+                    true_mask = true_mask.detach().cpu().numpy()
+
+                    cm = metrics.ConfusionMatrix(test=np.squeeze(pred, axis=0), reference=np.squeeze(true_mask, axis=0))
                     tp_, fp_, tn_, fn_ = cm.get_matrix()
                     tp += tp_
                     fp += fp_
@@ -47,7 +51,7 @@ def eval_train(net, loader, device):
             pbar.update(n=1)
 
     net.train()  # the net return to training mode
-    return 2 * tp / (2 * tp + fp + fn) if net.n_classes == 1 else tot / n_val
+    return 1 - (2 * tp / (2 * tp + fp + fn)) if net.n_classes == 1 else tot / n_val
 
 
 def eval_inference(patient, mask_dict, paths):

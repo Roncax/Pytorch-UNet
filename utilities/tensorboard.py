@@ -20,12 +20,12 @@ class Board:
         self.writer.add_scalar('learning_rate', optimized_lr, global_step)
 
         if net.n_classes > 1:
-            logging.info('Validation cross entropy: {}'.format(loss_val))
+            logging.info('Validation cross entropy loss: {}'.format(loss_val))
             self.writer.add_scalar(tag='Loss/test', scalar_value=loss_val, global_step=global_step)
 
             # self.writer.add_scalars(main_tag="Loss/test-train", tag_scalar_dict={"Test":loss_val}, global_step=global_step)
         else:
-            logging.info('Validation Dice Coeff: {}'.format(loss_val))
+            logging.info('Validation Dice Coeff loss: {}'.format(loss_val))
             self.writer.add_scalar('Dice/test', loss_val, global_step)
 
         self.writer.add_images('images', imgs, global_step)
