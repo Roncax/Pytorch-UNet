@@ -6,10 +6,10 @@ import torch
 from torch.utils.data import Dataset
 import logging
 from PIL import Image
-from preprocessing.scale import prepare_img, prepare_mask
+from mod_unet.preprocessing.prepare_img import prepare_img, prepare_mask
 
 
-class BasicDataset(Dataset):
+class JPGDataset(Dataset):
     def __init__(self, scale, paths, binary_label):
         self.binary_label = binary_label
         self.imgs_dir = paths.dir_train_imgs

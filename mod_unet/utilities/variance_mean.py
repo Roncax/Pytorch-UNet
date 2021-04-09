@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import paths
-from dataset_conversion.dataset import BasicDataset
+from datasets.dataset import BasicDataset
 
 paths=paths.Paths(db="SegTHOR")
 dataset = BasicDataset(paths=paths, scale=1)

@@ -1,11 +1,7 @@
 import json
 import os
 import numpy as np
-
 from PIL import Image
-
-# return a numpy volume over 1 directory of images (1 patient) - IMAGE MASK
-import paths
 
 
 def build_np_volume(dir):

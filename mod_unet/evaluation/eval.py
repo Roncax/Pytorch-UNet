@@ -4,10 +4,9 @@ import os
 import numpy as np
 import torch
 import torch.nn.functional as F
-import paths
-from utilities.various import build_np_volume
-from evaluation.metrics import ConfusionMatrix
-import evaluation.metrics as metrics
+from mod_unet.utilities.build_volume import build_np_volume
+from mod_unet.evaluation.metrics import ConfusionMatrix
+import mod_unet.evaluation.metrics as metrics
 
 
 def eval_train(net, loader, device):

@@ -1,20 +1,21 @@
 import json
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 from PIL import Image
 from utilities.data_vis import save_img_mask_plot, img2gif
-from preprocessing.scale import prepare_img
+from preprocessing.prepare_img import prepare_img
 from evaluation.eval import eval_inference
-from utilities.various import mask_to_image1D, mask_to_image3D
+from utilities.build_volume import mask_to_image1D, mask_to_image3D
 
 
 def predict_img(net,
                 full_img,
                 device,
                 scale_factor,
-                out_threshold):
+                out_threshold, labels):
     net.eval()
     img = torch.from_numpy(prepare_img(full_img, scale_factor))
 
@@ -47,7 +48,7 @@ def get_output_filenames_code(path, out_path):
     return out_files
 
 
-def predict_patient(scale, mask_threshold, viz, patient, net, device, paths):
+def predict_patient(scale, mask_threshold, viz, patient, net, device, paths, labels):
     path_in = os.path.join(paths.dir_test_img, patient)
     path_out = os.path.join(paths.dir_mask_prediction, patient)
     path_gt = os.path.join(paths.dir_test_GTimg, patient)
@@ -66,7 +67,13 @@ def predict_patient(scale, mask_threshold, viz, patient, net, device, paths):
                            full_img=img,
                            scale_factor=scale,
                            out_threshold=mask_threshold,
-                           device=device)
+                           device=device,
+                           labels=labels)
+        plt.imshow(mask)
+        plt.show()
+
+        plt.imshow(gt_mask)
+        plt.show()
 
         mask = np.array(mask).astype(np.bool)
         result = mask_to_image1D(mask)
@@ -75,7 +82,12 @@ def predict_patient(scale, mask_threshold, viz, patient, net, device, paths):
         if viz:
             mask = np.array(mask).astype(np.bool)
             colormap = json.load(open(paths.json_file))["colormap"]
-            save_img_mask_plot(img, mask_to_image3D(mask, colormap=colormap,paths=paths), ground_truth=gt_mask, fig_name=fn, patient_name=patient, paths=paths)
+            save_img_mask_plot(img,
+                               mask_to_image3D(mask, colormap=colormap, paths=paths),
+                               ground_truth=gt_mask,
+                               fig_name=fn,
+                               patient_name=patient,
+                               paths=paths)
     if viz:
         img2gif(png_dir=f"{paths.dir_plot_saves}/{patient}",
                 target_folder=paths.dir_predicted_gifs,

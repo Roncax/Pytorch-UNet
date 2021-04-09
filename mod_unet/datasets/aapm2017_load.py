@@ -1,7 +1,6 @@
 # from __future__ import division
 # import os, sys, glob
 # import numpy as np
-# import dicom
 # from skimage.draw import polygon
 # from skimage.transform import resize
 # import h5py

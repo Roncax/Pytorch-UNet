@@ -3,8 +3,8 @@ import logging
 import torch
 from torchsummary import summary
 
-from network_architecture.unet import UNet
-from network_architecture.unet.unet_parts import OutConv
+from mod_unet.network_architecture.unet import UNet
+from mod_unet.network_architecture.unet.unet_parts import OutConv
 
 
 def set_parameter_requires_grad(model):
@@ -13,10 +13,12 @@ def set_parameter_requires_grad(model):
 
 
 # create a net for every specified model
-def build_net(model, data_shape, n_classes, sum, device, load=False, load_dir=None, feature_extraction=True, load_nclaasses=None):
+def build_net(model, data_shape, n_classes, sum, device, load=False, load_dir=None, feature_extraction=False, load_nclasses=None):
     switcher = {
         "Unet": build_Unet(data_shape=data_shape, n_classes=n_classes, model="Unet", finetuning=load, load_dir=load_dir,
-                           device=device, feature_extraction=feature_extraction, load_nclasses=load_nclaasses)
+                           device=device, feature_extraction=feature_extraction, load_nclasses=load_nclasses),
+        "multiBinary-Unet": build_multibin_Unet(data_shape=data_shape, n_classes=n_classes, model="Unet", finetuning=load, load_dir=load_dir,
+                           device=device, feature_extraction=feature_extraction, load_nclasses=load_nclasses)
     }
 
     net = switcher.get(model)
@@ -25,6 +27,8 @@ def build_net(model, data_shape, n_classes, sum, device, load=False, load_dir=No
 
     return net
 
+def build_multibin_Unet(data_shape, n_classes, model, finetuning, load_dir, device, feature_extraction, load_nclasses):
+    pass
 
 def build_Unet(data_shape, n_classes, model, finetuning, load_dir, device, feature_extraction, load_nclasses):
     classes = load_nclasses if finetuning else n_classes

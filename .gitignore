@@ -8,3 +8,7 @@ __pycache__/
 *.gif
 *.0
 .idea/
+
+*.hdf5
+
+.vscode/

@@ -1,17 +1,19 @@
+import json
 import logging
+
+import h5py
 import torch
 import torch.nn as nn
 from torch import optim
 from tqdm import tqdm
-from dataset_conversion.dataset import BasicDataset
+from mod_unet.datasets.hdf5Dataset import HDF5Dataset
 from torch.utils.data import DataLoader, random_split
-from evaluation import eval
-import numpy as np
+from mod_unet.evaluation import eval
 
-from training.early_stopping import EarlyStopping
-from training.build_optimizer import build_optimizer
-from training.loss_criterion import build_loss_criterion
-from utilities.tensorboard import Board
+from mod_unet.training.early_stopping import EarlyStopping
+from mod_unet.options.build_optimizer import build_optimizer
+from mod_unet.options.loss_criterion import build_loss_criterion
+from mod_unet.utilities.tensorboard import Board
 
 
 def train_net(net,
@@ -32,12 +34,18 @@ def train_net(net,
     optimizer = build_optimizer(mode=optimizer_mode, net=net, lr=lr)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min',
                                                      patience=2)
+
     criterion = build_loss_criterion(loss_mode, net)
     early_stopping = EarlyStopping(patience=patience, verbose=True,
                                    path=paths.dir_checkpoint)  # initialize the early_stopping object
 
     # DATASET
-    dataset = BasicDataset(paths=paths, scale=img_scale, binary_label=binary_label)
+    db_info = json.load(open(paths.json_file))
+    db_info["experiments"] += 1
+    json.dump(db_info,  open(paths.json_file, "w"))
+    db = h5py.File(f'{paths.dir_database}/{paths.db_name}.hdf5', 'r')
+
+    dataset = HDF5Dataset(scale=img_scale, binary_label=binary_label, mode='train', db_info=db_info, db=db)
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
@@ -45,7 +53,7 @@ def train_net(net,
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True,
                             drop_last=True)
 
-    tsboard = Board(dataset_parameters=dataset.dataset_parameters, net=net,
+    tsboard = Board(dataset_parameters=dataset.db_info, net=net,
                     path=paths.dir_tensorboard_runs)  # for tensorboard viz
 
     logging.info(f'''Starting:
@@ -84,7 +92,7 @@ def train_net(net,
 
                 masks_pred = net(imgs)
 
-                loss = criterion(masks_pred, true_masks.squeeze(1) if net.n_classes > 2 else true_masks)
+                loss = criterion(masks_pred, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
 
                 tsboard.add_train_values(loss.item(), global_step)
 
@@ -108,7 +116,7 @@ def train_net(net,
                     # early_stopping needs the validation loss to check if it has decresed,
                     # and if it has, it will make a checkpoint of the current model
                     if patience != -1:
-                        early_stopping(loss_val, net, path=paths.dir_checkpoint, ds=dataset.dataset_parameters,
+                        early_stopping(loss_val, net, path=paths.dir_checkpoint, ds=dataset.db,
                                        train_loss=loss, loss_mode=loss_mode, optimizer=optimizer, epoch=epoch)
 
                         if early_stopping.early_stop:
@@ -123,9 +131,9 @@ def train_net(net,
                                     'loss_mode': loss_mode,
                                     'optimizer_state_dict': optimizer.state_dict()},
                                    f=f'{paths.dir_checkpoint}/'
-                                     f'Dataset({dataset.dataset_parameters["name"]})'
+                                     f'Dataset({dataset.db["name"]})'
                                      f'_Model({net.name})'
-                                     f'_Experiment({dataset.dataset_parameters["experiments"]})'
+                                     f'_Experiment({dataset.db["experiments"]})'
                                      f'_Epoch({epoch}).pth')
         # needed for early stopping
         if breaker:

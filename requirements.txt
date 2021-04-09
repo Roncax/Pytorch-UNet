@@ -10,3 +10,6 @@ opencv-python~=4.5.1.48
 imageio~=2.9.0
 nibabel~=3.2.1
 torchsummary~=1.5.1
+
+h5py~=2.10.0
+MedPy~=0.4.0
