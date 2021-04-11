@@ -2,16 +2,9 @@ import json
 import os
 import random
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 from nibabel import load as load_nii
 import h5py
-
-# read and decode a .nii file
-def read_nii(path: str):
-    img = load_nii(path).get_fdata()
-    img = np.uint8(img)
-    return img
 
 
 # load all labels in path from a  .nii
@@ -65,24 +58,24 @@ def nii2img(nii_root, root_path, dataset_parameters, paths):
 
 
 # dims: (512,512,n_slice)
-def nii_to_hdf5_img(nii_root: str, f: h5py.File, db_info):
+def nii_to_hdf5_img(nii_root: str, db_path: str, db_name: str, test_imgs: list):
     names = [name for name in os.listdir(nii_root)]
 
-    for name in names:
-        image_array = read_nii(os.path.join(nii_root, name, "data.nii"))
-        mask_array = read_nii(os.path.join(nii_root, name, "label.nii"))
+    with h5py.File(db_path, 'a') as f:
+        for name in names:
+            image_array = load_nii(os.path.join(nii_root, name, "data.nii")).get_fdata()
+            mask_array = load_nii(os.path.join(nii_root, name, "label.nii")).get_fdata()
 
-        # save every img slice in a subdir
-        for n in range(image_array.shape[2]):
-            mode = "test" if name in db_info['test'] else "train"
-            f.create_dataset(name=f'{db_info["name"]}/{mode}/volume_{name}/image/slice_{n}', data=image_array[:, :, n])
-            f.create_dataset(name=f'{db_info["name"]}/{mode}/volume_{name}/mask/slice_{n}', data=mask_array[:, :, n])
+            # save every img slice in a subdir
+            for n in range(image_array.shape[2]):
+                mode = "test" if name in test_imgs else "train"
+                f.create_dataset(name=f'{db_name}/{mode}/volume_{name}/image/slice_{n}', data=image_array[:, :, n])
+                f.create_dataset(name=f'{db_name}/{mode}/volume_{name}/mask/slice_{n}', data=mask_array[:, :, n])
 
-
+    
 # choose random n volumes and save names in json
 def random_split_test(dir: str, db_info: dict, paths):
     names = [name for name in os.listdir(dir)]
-    # choose random test images and populate the json file
     test_img = random.sample(names, db_info['numTest'])
     db_info['test'] = test_img
     db_info['train'] = [item for item in names if not item in test_img]
@@ -94,18 +87,6 @@ def random_split_test(dir: str, db_info: dict, paths):
 
 # final shape single dataset -> (512,512) mask and img
 def prepare_structseg(paths):
-    db_info = json.load(open(paths.json_file))
-
-    random_split_test(dir=paths.dir_raw_db, db_info=db_info, paths=paths)
-    with h5py.File(f'{paths.dir_database}/{paths.db_name}.hdf5', 'w') as f:
-        nii_to_hdf5_img(f=f, db_info=db_info, nii_root=paths.dir_raw_db)
-
-    # with h5py.File(f'{paths.dir_database}/{paths.db_name}.hdf5', 'r') as f:
-    #     print(f[f'{db_info["name"]}'].keys())
-    #     print(f[f'{db_info["name"]}/train'].keys())
-    #     print(f[f'{db_info["name"]}/train/volume_1/mask'].keys())
-    #     print(f[f'{db_info["name"]}/train/volume_1/mask/slice_0'].shape)
-    #     print(f[f'{db_info["name"]}/train/volume_1/'].keys())
-    #     plt.imshow(f[f'{db_info["name"]}/train/volume_1/mask/slice_0'])
-    #     plt.show()
-    #     print(np.unique(f[f'{db_info["name"]}/train/volume_1/mask/slice_0'][:,:]))
+    db_name = json.load(open(paths.json_file))["name"]
+    test_imgs = json.load(open(paths.json_file))["test"]
+    nii_to_hdf5_img(db_path=paths.hdf5_db, db_name=db_name, nii_root=paths.dir_raw_db, test_imgs=test_imgs)

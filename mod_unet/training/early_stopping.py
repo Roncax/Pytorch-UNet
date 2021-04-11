@@ -29,25 +29,28 @@ class EarlyStopping:
         self.path = path
         self.trace_func = trace_func
 
-    def __call__(self, loss_val, model, path, ds, train_loss, loss_mode, optimizer, epoch):
+    def __call__(self, loss_val, model, path, db_info, train_loss, optimizer, epoch):
         self.path = path
 
         score = -loss_val
 
         if self.best_score is None:
             self.best_score = score
-            self.save_checkpoint(loss_val=loss_val, net=model, dataset_parameters=ds, loss_mode=loss_mode, loss=train_loss, optimizer=optimizer, epoch=epoch)
+            self.save_checkpoint(loss_val=loss_val, net=model, db_info=db_info, loss=train_loss,
+                                 optimizer=optimizer, epoch=epoch)
         elif score < self.best_score + self.delta:
             self.counter += 1
             self.trace_func(f'EarlyStopping counter: {self.counter} out of {self.patience}')
             if self.counter >= self.patience:
                 self.early_stop = True
+                print(f"Early stopping on epoch: {epoch}")
         else:
             self.best_score = score
-            self.save_checkpoint(loss_val, model, loss_mode=loss_mode, loss=train_loss, optimizer=optimizer, dataset_parameters=ds, epoch=epoch)
+            self.save_checkpoint(loss_val, model, loss=train_loss, optimizer=optimizer, db_info=db_info,
+                                 epoch=epoch)
             self.counter = 0
 
-    def save_checkpoint(self, loss_val, net, loss, loss_mode, optimizer, dataset_parameters, epoch):
+    def save_checkpoint(self, loss_val, net, loss, optimizer, db_info, epoch):
         '''Saves model when validation loss decrease.'''
         if self.verbose:
             self.trace_func(
@@ -56,12 +59,12 @@ class EarlyStopping:
         torch.save({'model_state_dict': net.state_dict(),
                     'train_loss': loss,
                     'val_loss': loss_val,
-                    'loss_mode': loss_mode,
                     'optimizer_state_dict': optimizer.state_dict()},
                    f=f'{self.path}/'
-                     f'Dataset({dataset_parameters["name"]})'
+                     f'Dataset({db_info["name"]})'
                      f'_Model({net.name})'
-                     f'_Experiment({dataset_parameters["experiments"]})'
-                     f'_Epoch({epoch}).pth')
+                     f'_Experiment({db_info["experiments"]})'
+                     f'_Epoch({epoch}).pth'
+                     f'_ValLoss({loss_val}).pth')
 
         self.loss_val_min = loss_val

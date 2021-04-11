@@ -1,7 +1,6 @@
 import logging
 
 import torch
-from torchsummary import summary
 
 from mod_unet.network_architecture.unet import UNet
 from mod_unet.network_architecture.unet.unet_parts import OutConv
@@ -13,22 +12,15 @@ def set_parameter_requires_grad(model):
 
 
 # create a net for every specified model
-def build_net(model, data_shape, n_classes, sum, device, load=False, load_dir=None, feature_extraction=False, load_nclasses=None):
+def build_net(model, data_shape, n_classes, device, finetuning=False, load_dir=None, feature_extraction=False,
+              load_nclasses=None):
     switcher = {
-        "Unet": build_Unet(data_shape=data_shape, n_classes=n_classes, model="Unet", finetuning=load, load_dir=load_dir,
-                           device=device, feature_extraction=feature_extraction, load_nclasses=load_nclasses),
-        "multiBinary-Unet": build_multibin_Unet(data_shape=data_shape, n_classes=n_classes, model="Unet", finetuning=load, load_dir=load_dir,
+        "Unet": build_Unet(data_shape=data_shape, n_classes=n_classes, model="Unet", finetuning=finetuning, load_dir=load_dir,
                            device=device, feature_extraction=feature_extraction, load_nclasses=load_nclasses)
     }
 
-    net = switcher.get(model)
-    if sum:
-        summary(net, input_size=data_shape)
+    return switcher.get(model)
 
-    return net
-
-def build_multibin_Unet(data_shape, n_classes, model, finetuning, load_dir, device, feature_extraction, load_nclasses):
-    pass
 
 def build_Unet(data_shape, n_classes, model, finetuning, load_dir, device, feature_extraction, load_nclasses):
     classes = load_nclasses if finetuning else n_classes
@@ -38,20 +30,24 @@ def build_Unet(data_shape, n_classes, model, finetuning, load_dir, device, featu
                 {net.n_channels} input channels
                 {net.n_classes} output channels (classes)
                 {"Bilinear" if net.bilinear else "Transposed conv"} upscaling
+                Fine tuning: {finetuning}
+                Feature extraction: {feature_extraction}
                 ''')
 
-    mod = ""
     if finetuning:
+        net.name += "_FineTuning"
         ckpt = torch.load(load_dir, map_location=device)
         net.load_state_dict(ckpt['model_state_dict'])
-        mod = "_FineTuning"
-        logging.info(f'Model {net.name} loaded from {load_dir}')
-        if feature_extraction:
-            mod = "_FeatureExtraction"
-            set_parameter_requires_grad(net)
-            net.outc = OutConv(64, n_classes)
+        logging.info(f'Model {net.name} loaded from {load_dir} for fine tuning')
 
-    net.name = net.name + mod
+    elif feature_extraction:
+        net.name += "_FeatureExtraction"
+        ckpt = torch.load(load_dir, map_location=device)
+        net.load_state_dict(ckpt['model_state_dict'])
+        set_parameter_requires_grad(net)
+        net.outc = OutConv(64, n_classes)
+        logging.info(f'Model {net.name} loaded from {load_dir} for feature extraction')
+
     net.to(device=device)
 
     return net

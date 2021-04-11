@@ -2,6 +2,8 @@ import json
 import logging
 
 import h5py
+import matplotlib.pyplot
+import numpy as np
 import torch
 import torch.nn as nn
 from torch import optim
@@ -11,8 +13,6 @@ from torch.utils.data import DataLoader, random_split
 from mod_unet.evaluation import eval
 
 from mod_unet.training.early_stopping import EarlyStopping
-from mod_unet.options.build_optimizer import build_optimizer
-from mod_unet.options.loss_criterion import build_loss_criterion
 from mod_unet.utilities.tensorboard import Board
 
 
@@ -25,27 +25,20 @@ def train_net(net,
               save_cp,
               img_scale,
               patience,
-              optimizer_mode,
-              loss_mode,
               val_round,
               paths,
-              binary_label=None):
+              labels):
     global_step = 0
-    optimizer = build_optimizer(mode=optimizer_mode, net=net, lr=lr)
+    optimizer = optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8, momentum=0.9)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min',
                                                      patience=2)
 
-    criterion = build_loss_criterion(loss_mode, net)
-    early_stopping = EarlyStopping(patience=patience, verbose=True,
-                                   path=paths.dir_checkpoint)  # initialize the early_stopping object
+    criterion = nn.CrossEntropyLoss() if net.n_classes > 1 else nn.BCEWithLogitsLoss()
+    early_stopping = EarlyStopping(patience=patience, verbose=True, path=paths.dir_checkpoint)
 
     # DATASET
-    db_info = json.load(open(paths.json_file))
-    db_info["experiments"] += 1
-    json.dump(db_info,  open(paths.json_file, "w"))
-    db = h5py.File(f'{paths.dir_database}/{paths.db_name}.hdf5', 'r')
-
-    dataset = HDF5Dataset(scale=img_scale, binary_label=binary_label, mode='train', db_info=db_info, db=db)
+    dataset = HDF5Dataset(scale=img_scale, mode='train', db_info=json.load(open(paths.json_file)), paths=paths,
+                          labels=labels)
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
@@ -53,8 +46,9 @@ def train_net(net,
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True,
                             drop_last=True)
 
+    # tensorboard viz
     tsboard = Board(dataset_parameters=dataset.db_info, net=net,
-                    path=paths.dir_tensorboard_runs)  # for tensorboard viz
+                    path=paths.dir_tensorboard_runs)
 
     logging.info(f'''Starting:
         Net:             {net.name}
@@ -66,11 +60,11 @@ def train_net(net,
         Checkpoints:     {save_cp}
         Device:          {device.type}
         Images scaling:  {img_scale}
-        Binary:          {binary_label}
+        Labels:          {len(labels)}
         Patience:        {patience}
+        Expretiment:     {net.parameters["experiments"]}
     ''')
 
-    breaker = False  # used for early stopping
     # main loop
     for epoch in range(epochs):
         net.train()  # net in train mode
@@ -90,11 +84,13 @@ def train_net(net,
                 mask_type = torch.float32 if net.n_classes == 1 else torch.long
                 true_masks = true_masks.to(device=device, dtype=mask_type)
 
+
                 masks_pred = net(imgs)
 
                 loss = criterion(masks_pred, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
 
-                tsboard.add_train_values(loss.item(), global_step)
+                if global_step % 10 == 0:
+                    tsboard.add_train_values(loss.item(), global_step)
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -116,27 +112,24 @@ def train_net(net,
                     # early_stopping needs the validation loss to check if it has decresed,
                     # and if it has, it will make a checkpoint of the current model
                     if patience != -1:
-                        early_stopping(loss_val, net, path=paths.dir_checkpoint, ds=dataset.db,
-                                       train_loss=loss, loss_mode=loss_mode, optimizer=optimizer, epoch=epoch)
-
-                        if early_stopping.early_stop:
-                            print(f"Early stopping on epoch: {epoch}")
-                            breaker = True
-                            break
+                        early_stopping(loss_val=loss_val, model=net, path=paths.dir_checkpoint, db_info=dataset.db_info,
+                                       train_loss=loss, optimizer=optimizer, epoch=epoch)
+                        if early_stopping.early_stop: break
 
                     else:
                         torch.save({'model_state_dict': net.state_dict(),
                                     'train_loss': loss,
                                     'val_loss': loss_val,
-                                    'loss_mode': loss_mode,
                                     'optimizer_state_dict': optimizer.state_dict()},
                                    f=f'{paths.dir_checkpoint}/'
-                                     f'Dataset({dataset.db["name"]})'
+                                     f'Dataset({dataset.db_info["name"]})'
                                      f'_Model({net.name})'
-                                     f'_Experiment({dataset.db["experiments"]})'
-                                     f'_Epoch({epoch}).pth')
-        # needed for early stopping
-        if breaker:
-            break
+                                     f'_Experiment({dataset.db_info["experiments"]})'
+                                     f'_Epoch({epoch}).pth'
+                                     f'_ValLoss({round(loss_val, 4)}).pth')
+
+        if early_stopping.early_stop: break
+
         tsboard.add_epoch_results(net=net, global_step=global_step)
+
     tsboard.writer.close()
