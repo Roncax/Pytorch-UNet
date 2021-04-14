@@ -1,9 +1,7 @@
 import json
 import logging
 
-import h5py
-import matplotlib.pyplot
-import numpy as np
+
 import torch
 import torch.nn as nn
 from torch import optim
@@ -62,7 +60,6 @@ def train_net(net,
         Images scaling:  {img_scale}
         Labels:          {len(labels)}
         Patience:        {patience}
-        Expretiment:     {net.parameters["experiments"]}
     ''')
 
     # main loop
@@ -105,11 +102,10 @@ def train_net(net,
                 if global_step % int(len(train) * val_round) == 0:
                     loss_val = eval.eval_train(net, val_loader, device)
                     scheduler.step(loss_val)
-
                     tsboard.add_validation_values(net=net, global_step=global_step, loss_val=loss_val,
                                                   optimized_lr=optimizer.param_groups[0]['lr'], imgs=imgs)
 
-                    # early_stopping needs the validation loss to check if it has decresed,
+                    # early_stopping needs the validation loss to check if it has decreased,
                     # and if it has, it will make a checkpoint of the current model
                     if patience != -1:
                         early_stopping(loss_val=loss_val, model=net, path=paths.dir_checkpoint, db_info=dataset.db_info,
@@ -125,11 +121,12 @@ def train_net(net,
                                      f'Dataset({dataset.db_info["name"]})'
                                      f'_Model({net.name})'
                                      f'_Experiment({dataset.db_info["experiments"]})'
-                                     f'_Epoch({epoch}).pth'
-                                     f'_ValLoss({round(loss_val, 4)}).pth')
-
-        if early_stopping.early_stop: break
+                                     f'_Epoch({epoch})'
+                                     f'_Loss({round(loss_val, 4)}).pth')
 
         tsboard.add_epoch_results(net=net, global_step=global_step)
+        if early_stopping.early_stop: break
+
+
 
     tsboard.writer.close()

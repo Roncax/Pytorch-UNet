@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import imageio
 import matplotlib.pyplot as plt
@@ -59,39 +60,35 @@ def img2gif(png_dir, target_folder, out_name):
             images.append(imageio.imread(file_path))
     imageio.mimsave(target_folder + f"/{out_name}.gif", images)
 
-def volume2gif(volume, target_folder, out_name):
+def volume2gif(volume, target_folder, out_name,):
     imageio.mimsave(f"{target_folder}/{out_name}.gif", volume)
 
 
-def plot_single_result(results, type, paths):
+def plot_single_result(results, type, paths, labels, mode):
     fig, ax = plt.subplots()
 
-    with open(paths.json_file) as f:
-        mask_dict = json.load(f)["labels"]
-
     score = {}
-    for organ in mask_dict:
-        score[mask_dict[organ]] = []
+    for organ in labels:
+        score[labels[organ]] = []
 
-    with tqdm(total=results.keys(), unit='volume') as pbar:
+    logging.info(f"Calculating {type} now")
+    with tqdm(total=len(results.keys()), unit='volume') as pbar:
         for patient in results:
             for organ in results[patient]:
                 score[organ].append(metrics.ALL_METRICS[type](confusion_matrix=results[patient][organ]))
             pbar.update(1)
 
     ax.boxplot(x=score.values(), labels=score.keys())
-    plt.title(type)
+    plt.title(f"{type} {mode}")
     plt.xticks(rotation=-45)
 
     os.makedirs(f"{paths.dir_plots}", exist_ok=True)
-    plt.savefig(paths.dir_plots + f"/{type}.png")
-
-    plt.show()
+    plt.savefig(paths.dir_plots + f"/{type}_{mode}.png")
 
 
-def plot_results(results, paths, met='all'):
+def plot_results(results, paths, labels, met='all', mode=""):
     if met == all:
         met = metrics.ALL_METRICS.keys()
 
     for m in met:
-        plot_single_result(results=results, type=m, paths=paths)
+        plot_single_result(results=results, type=m, paths=paths, labels=labels, mode=mode)

@@ -13,13 +13,14 @@ from mod_unet.preprocessing.ct_levels_enhance import setDicomWinWidthWinCenter
 
 
 class HDF5Dataset(Dataset):
-    def __init__(self, scale: float, db_info: dict, mode: str, paths, labels: dict):
+    def __init__(self, scale: float, db_info: dict, mode: str, paths, labels: dict, multibin = False):
         db_info["experiments"] += 1
         json.dump(db_info, open(paths.json_file, "w"))
 
         self.labels = labels
         self.db_dir = paths.hdf5_db
         self.scale = scale
+        self.multibin = multibin
         assert 0 < scale <= 1, 'Scale must be between 0 and 1'
 
         self.db_info = db_info
@@ -53,27 +54,41 @@ class HDF5Dataset(Dataset):
         mask_cp = np.zeros(shape=mask.shape, dtype=int)
 
         l = [x for x in self.labels.keys() if x != str(0)]
-
-        if len(l) == 1:
+        img_dict = {}
+        if len(l) == 1 and not self.multibin:
             mask_cp[mask == int(l[0])] = 1
             img = setDicomWinWidthWinCenter(img_data=img, winwidth=self.db_info["CTwindow_width"][self.labels[l[0]]],
                                             wincenter=self.db_info["CTwindow_level"][self.labels[l[0]]])
             img = np.uint8(img)
+            img = prepare_img(img, self.scale)
+            mask_cp = prepare_mask(mask_cp, self.scale)
 
-        elif len(l) > 2:
+        elif len(l) > 2 and not self.multibin:
             img = setDicomWinWidthWinCenter(img_data=img, winwidth=self.db_info["CTwindow_width"]["coarse"],
                                             wincenter=self.db_info["CTwindow_level"]["coarse"])
             img = np.uint8(img)
-
             for key in l:
                 mask_cp[mask == int(key)] = key
 
-        img = prepare_img(img, self.scale)
-        mask_cp = prepare_mask(mask_cp, self.scale)
+            img = prepare_img(img, self.scale)
+            mask_cp = prepare_mask(mask_cp, self.scale)
+
+        if self.multibin:
+            for lab in self.labels:
+                img_temp=img.copy()
+                img_temp = setDicomWinWidthWinCenter(img_data=img_temp, winwidth=self.db_info["CTwindow_width"][self.labels[lab]],
+                                            wincenter=self.db_info["CTwindow_level"][self.labels[lab]])
+                img_temp = np.uint8(img_temp)
+                img_temp = prepare_img(img_temp, self.scale)
+
+                img_temp = torch.from_numpy(img_temp).type(torch.FloatTensor)
+                img_dict[lab] = img_temp
+
 
         # print(f"MASK: {np.unique(mask)} - {mask.shape} MASK CP: {np.unique(mask_cp)}- {mask_cp.shape} IMG: {np.unique(img)}")
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),
             'mask': torch.from_numpy(mask_cp).type(torch.FloatTensor),
-            'id': self.ids_img[idx]
+            'id': self.ids_img[idx],
+            'image_organ': img_dict
         }

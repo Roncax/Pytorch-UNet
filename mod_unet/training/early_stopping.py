@@ -64,7 +64,7 @@ class EarlyStopping:
                      f'Dataset({db_info["name"]})'
                      f'_Model({net.name})'
                      f'_Experiment({db_info["experiments"]})'
-                     f'_Epoch({epoch}).pth'
-                     f'_ValLoss({loss_val}).pth')
+                     f'_Epoch({epoch})'
+                     f'_Loss({round(loss_val, 4)}).pth')
 
         self.loss_val_min = loss_val

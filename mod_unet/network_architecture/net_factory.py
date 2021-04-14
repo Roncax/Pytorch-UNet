@@ -13,40 +13,51 @@ def set_parameter_requires_grad(model):
 
 # create a net for every specified model
 def build_net(model, data_shape, n_classes, device, finetuning=False, load_dir=None, feature_extraction=False,
-              load_nclasses=None):
+              old_classes=None, load_inference=False):
     switcher = {
-        "Unet": build_Unet(data_shape=data_shape, n_classes=n_classes, model="Unet", finetuning=finetuning, load_dir=load_dir,
-                           device=device, feature_extraction=feature_extraction, load_nclasses=load_nclasses)
+        "Unet": build_Unet(data_shape=data_shape, n_classes=n_classes, finetuning=finetuning, load_dir=load_dir,
+                           device=device, feature_extraction=feature_extraction,old_classes=old_classes,load_inference=load_inference)
     }
 
     return switcher.get(model)
 
 
-def build_Unet(data_shape, n_classes, model, finetuning, load_dir, device, feature_extraction, load_nclasses):
-    classes = load_nclasses if finetuning else n_classes
+def build_Unet(data_shape, n_classes, finetuning, load_dir, device, feature_extraction, old_classes, load_inference):
 
-    net = UNet(n_channels=data_shape[0], n_classes=classes, bilinear=True).cuda()
-    logging.info(f'''Network {model} uploaded:
-                {net.n_channels} input channels
-                {net.n_classes} output channels (classes)
-                {"Bilinear" if net.bilinear else "Transposed conv"} upscaling
-                Fine tuning: {finetuning}
-                Feature extraction: {feature_extraction}
-                ''')
+    net = UNet(n_channels=data_shape[0], n_classes=n_classes, bilinear=True).cuda()
 
     if finetuning:
+        net = UNet(n_channels=data_shape[0], n_classes=old_classes, bilinear=True).cuda()
         net.name += "_FineTuning"
         ckpt = torch.load(load_dir, map_location=device)
         net.load_state_dict(ckpt['model_state_dict'])
-        logging.info(f'Model {net.name} loaded from {load_dir} for fine tuning')
+        net.outc = OutConv(64, n_classes)
+        net.n_classes = n_classes
 
     elif feature_extraction:
+        net = UNet(n_channels=data_shape[0], n_classes=old_classes, bilinear=True).cuda()
         net.name += "_FeatureExtraction"
         ckpt = torch.load(load_dir, map_location=device)
         net.load_state_dict(ckpt['model_state_dict'])
         set_parameter_requires_grad(net)
         net.outc = OutConv(64, n_classes)
-        logging.info(f'Model {net.name} loaded from {load_dir} for feature extraction')
+        net.n_classes = n_classes
+
+    elif load_inference:
+        net = UNet(n_channels=data_shape[0], n_classes=n_classes, bilinear=True).cuda()
+        net.name += "_Inference"
+        ckpt = torch.load(load_dir, map_location=device)
+        net.load_state_dict(ckpt['model_state_dict'])
+        net.n_classes = n_classes
+
+    logging.info(f'''Network Unet uploaded:
+                {net.n_channels} input channels
+                {net.n_classes} output channels (classes)
+                {"Bilinear" if net.bilinear else "Transposed conv"} upscaling
+                Fine tuning: {finetuning} with {old_classes} classes
+                Feature extraction: {feature_extraction} with {old_classes} classes
+                ''')
+
 
     net.to(device=device)
 
