@@ -15,6 +15,21 @@ def combine_predictions(comb_dict, mask_threshold, shape):
         tot[t == 1] = organ1
     return tot
 
+def combine_predictions_with_coarse(comb_dict, mask_threshold, shape, coarse):
+    tot = np.zeros(shape)
+    for organ1 in comb_dict:
+        t = comb_dict[organ1].copy()
+        cd = comb_dict.copy()
+        cd.pop(organ1)
+        for organ2 in cd:
+            t[comb_dict[organ1] < comb_dict[organ2]] = 0
+
+        t[t < mask_threshold] = 0
+        t[t > mask_threshold] = 1
+        tot[t == 1] = organ1
+
+    return tot
+
 
 labels = {"0": "Bg",
           "1": "RightLung",
@@ -35,5 +50,5 @@ for l in labels:
     print(f"label  {l}")
     print(t)
 
-tot = combine_predictions(comb_dict=comb_dict, mask_threshold=mask_threshold, shape=shape)
+tot = combine_predictions_with_coarse(comb_dict=comb_dict, mask_threshold=mask_threshold, shape=shape)
 print(f"Total: \n{tot}")

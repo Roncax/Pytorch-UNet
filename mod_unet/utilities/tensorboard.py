@@ -1,33 +1,38 @@
 import logging
 
-import torch
 from torch.utils.tensorboard import SummaryWriter
 
 
 class Board:
 
-    def __init__(self, path, net, dataset_parameters):
-        self.writer = SummaryWriter(log_dir=f'{path}/'
-                                            f'{net.name}'
-                                            f'-{dataset_parameters["name"]}'
-                                            f'-experiment({dataset_parameters["experiments"]}).pth')
+    def __init__(self, path, net, dataset_parameters, active_logs = True):
+        if active_logs:
+            self.writer = SummaryWriter(log_dir=f'{path}/'
+                                                f'{net.name}'
+                                                f'-{dataset_parameters["name"]}'
+                                                f'-experiment({dataset_parameters["experiments"]}).pth')
+        else:
+            self.writer = None
+
 
     def add_train_values(self, loss, global_step):
-        self.writer.add_scalar("Loss/train", loss, global_step)
-        # self.writer.add_scalars(main_tag="Loss/test-train", tag_scalar_dict={"Train": loss}, global_step=global_step)
+        if self.writer is not None:
+            self.writer.add_scalar("Loss/train", loss, global_step)
 
     def add_validation_values(self, net, global_step, loss_val, optimized_lr, imgs):
-        self.writer.add_scalar('learning_rate', optimized_lr, global_step)
-        logging.info('Validation cross entropy loss: {}'.format(loss_val))
-        self.writer.add_scalar(tag='Loss/test', scalar_value=loss_val, global_step=global_step)
-        self.writer.add_images('images', imgs, global_step)
+        if self.writer is not None:
+            self.writer.add_scalar('learning_rate', optimized_lr, global_step)
+            logging.info('Validation cross entropy loss: {}'.format(loss_val))
+            self.writer.add_scalar(tag='Loss/test', scalar_value=loss_val, global_step=global_step)
+            self.writer.add_images('images', imgs, global_step)
 
     def add_epoch_results(self, net, global_step):
-        for tag, value in net.named_parameters():
-            tag = tag.replace('.', '/')
-            self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), global_step)
+        if self.writer is not None:
+            for tag, value in net.named_parameters():
+                tag = tag.replace('.', '/')
+                self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), global_step)
 
-            try:
-                self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), global_step)
-            except AttributeError:
-                continue
+                try:
+                    self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), global_step)
+                except AttributeError:
+                    continue

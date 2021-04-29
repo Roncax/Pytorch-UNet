@@ -4,6 +4,8 @@ import torch
 
 from mod_unet.network_architecture.unet import UNet
 from mod_unet.network_architecture.unet.unet_parts import OutConv
+from torchsummary import summary
+
 
 
 def set_parameter_requires_grad(model):
@@ -13,16 +15,16 @@ def set_parameter_requires_grad(model):
 
 # create a net for every specified model
 def build_net(model, data_shape, n_classes, device, finetuning=False, load_dir=None, feature_extraction=False,
-              old_classes=None, load_inference=False):
+              old_classes=None, load_inference=False, verbose=False):
     switcher = {
         "Unet": build_Unet(data_shape=data_shape, n_classes=n_classes, finetuning=finetuning, load_dir=load_dir,
-                           device=device, feature_extraction=feature_extraction,old_classes=old_classes,load_inference=load_inference)
+                           device=device, feature_extraction=feature_extraction,old_classes=old_classes,load_inference=load_inference, verbose=verbose)
     }
 
     return switcher.get(model)
 
 
-def build_Unet(data_shape, n_classes, finetuning, load_dir, device, feature_extraction, old_classes, load_inference):
+def build_Unet(data_shape, n_classes, finetuning, load_dir, device, feature_extraction, old_classes, load_inference, verbose):
 
     net = UNet(n_channels=data_shape[0], n_classes=n_classes, bilinear=True).cuda()
 
@@ -50,14 +52,16 @@ def build_Unet(data_shape, n_classes, finetuning, load_dir, device, feature_extr
         net.load_state_dict(ckpt['model_state_dict'])
         net.n_classes = n_classes
 
-    logging.info(f'''Network Unet uploaded:
-                {net.n_channels} input channels
-                {net.n_classes} output channels (classes)
-                {"Bilinear" if net.bilinear else "Transposed conv"} upscaling
-                Fine tuning: {finetuning} with {old_classes} classes
-                Feature extraction: {feature_extraction} with {old_classes} classes
-                ''')
+    if verbose:
+        logging.info(f'''Network Unet uploaded:
+                    {net.n_channels} input channels
+                    {net.n_classes} output channels (classes)
+                    {"Bilinear" if net.bilinear else "Transposed conv"} upscaling
+                    Fine tuning: {finetuning} with {old_classes} classes
+                    Feature extraction: {feature_extraction} with {old_classes} classes
+                    ''')
 
+        summary(net, input_size=data_shape)
 
     net.to(device=device)
 

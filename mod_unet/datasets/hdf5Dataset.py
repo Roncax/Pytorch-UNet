@@ -1,26 +1,26 @@
 import json
-import os
 
-import cv2
 import h5py
 import numpy as np
 import torch
-from matplotlib import pyplot as plt
 from torch.utils.data import Dataset
 import logging
-from mod_unet.preprocessing.prepare_img import prepare_img, prepare_mask
+from mod_unet.preprocessing.prepare_img import prepare_img
 from mod_unet.preprocessing.ct_levels_enhance import setDicomWinWidthWinCenter
+import albumentations as A
+from mod_unet.utilities.data_vis import visualize
 
 
 class HDF5Dataset(Dataset):
-    def __init__(self, scale: float, db_info: dict, mode: str, paths, labels: dict, multibin = False):
+    def __init__(self, scale: float, db_info: dict, mode: str, paths, labels: dict, augmentation = False):
         db_info["experiments"] += 1
         json.dump(db_info, open(paths.json_file, "w"))
 
         self.labels = labels
         self.db_dir = paths.hdf5_db
         self.scale = scale
-        self.multibin = multibin
+        self.mode = mode
+        self.augmentation = augmentation
         assert 0 < scale <= 1, 'Scale must be between 0 and 1'
 
         self.db_info = db_info
@@ -46,49 +46,90 @@ class HDF5Dataset(Dataset):
 
         img = db[self.ids_img[idx]][()]
         mask = db[self.ids_mask[idx]][()]
+        img_dict = {}
 
         assert img.size == mask.size, \
             f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
 
-        # only specified classes are considered in the DB
-        mask_cp = np.zeros(shape=mask.shape, dtype=int)
+        if self.mode == "train":
 
-        l = [x for x in self.labels.keys() if x != str(0)]
-        img_dict = {}
-        if len(l) == 1 and not self.multibin:
-            mask_cp[mask == int(l[0])] = 1
-            img = setDicomWinWidthWinCenter(img_data=img, winwidth=self.db_info["CTwindow_width"][self.labels[l[0]]],
-                                            wincenter=self.db_info["CTwindow_level"][self.labels[l[0]]])
+            # only specified classes are considered in the DB
+            l = [x for x in self.labels.keys() if x != str(0)]
+            mask_cp = np.zeros(shape=mask.shape, dtype=int)
+
+            if len(l) == 1:
+                img = setDicomWinWidthWinCenter(img_data=img, winwidth=self.db_info["CTwindow_width"][self.labels[l[0]]],
+                                                wincenter=self.db_info["CTwindow_level"][self.labels[l[0]]])
+                mask_cp[mask == int(l[0])] = 1
+
+            else:
+                img = setDicomWinWidthWinCenter(img_data=img, winwidth=self.db_info["CTwindow_width"]["coarse"],
+                                                wincenter=self.db_info["CTwindow_level"]["coarse"])
+                for key in l:
+                    mask_cp[mask == int(key)] = key
+
             img = np.uint8(img)
-            img = prepare_img(img, self.scale)
-            mask_cp = prepare_mask(mask_cp, self.scale)
+            img, mask = self.prepare_segmentation_img_mask(img=img, mask=mask_cp)
 
-        elif len(l) > 2 and not self.multibin:
-            img = setDicomWinWidthWinCenter(img_data=img, winwidth=self.db_info["CTwindow_width"]["coarse"],
-                                            wincenter=self.db_info["CTwindow_level"]["coarse"])
-            img = np.uint8(img)
-            for key in l:
-                mask_cp[mask == int(key)] = key
-
-            img = prepare_img(img, self.scale)
-            mask_cp = prepare_mask(mask_cp, self.scale)
-
-        if self.multibin:
+        elif self.mode == "test":
             for lab in self.labels:
                 img_temp=img.copy()
                 img_temp = setDicomWinWidthWinCenter(img_data=img_temp, winwidth=self.db_info["CTwindow_width"][self.labels[lab]],
                                             wincenter=self.db_info["CTwindow_level"][self.labels[lab]])
                 img_temp = np.uint8(img_temp)
+
                 img_temp = prepare_img(img_temp, self.scale)
 
                 img_temp = torch.from_numpy(img_temp).type(torch.FloatTensor)
                 img_dict[lab] = img_temp
 
+            l = [x for x in self.labels.keys() if x != str(0)]
+            mask_cp = np.zeros(shape=mask.shape, dtype=int)
+            img = setDicomWinWidthWinCenter(img_data=img, winwidth=self.db_info["CTwindow_width"]["coarse"],
+                                            wincenter=self.db_info["CTwindow_level"]["coarse"])
+            for key in l:
+                mask_cp[mask == int(key)] = key
 
-        # print(f"MASK: {np.unique(mask)} - {mask.shape} MASK CP: {np.unique(mask_cp)}- {mask_cp.shape} IMG: {np.unique(img)}")
+            img = np.uint8(img)
+            img, mask = self.prepare_segmentation_img_mask(img=img, mask=mask_cp)
+
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),
-            'mask': torch.from_numpy(mask_cp).type(torch.FloatTensor),
+            'mask': torch.from_numpy(mask).type(torch.FloatTensor),
             'id': self.ids_img[idx],
             'image_organ': img_dict
         }
+
+    def prepare_segmentation_img_mask(self, img, mask):
+        w, h = img.shape
+        img = np.expand_dims(img, axis=2)
+        mask = np.expand_dims(mask, axis=2)
+
+        resize = A.Resize(height=int(self.scale * w), width=int(self.scale * h), always_apply=True)
+        resized_img = resize(image=img, mask=mask)
+        original_img = resized_img['image']
+        original_mask = resized_img['mask']
+
+        if self.augmentation:
+            transform = A.Compose([
+                A.ElasticTransform(p=0.5, alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03),
+                A.GridDistortion(p=0.5),
+                A.Blur(blur_limit=7, always_apply=False, p=0.5),
+                A.GaussNoise(var_limit=(10, 50), always_apply=False, p=0.5),
+            ])
+
+            transformed = transform(image=original_img, mask=original_mask)
+            img = transformed['image']
+            mask = transformed['mask']
+
+            img = img / 255
+            #visualize(mask=mask, image=img, original_image=original_img, original_mask=original_mask)
+
+        else:
+            img = original_img/255
+            mask = original_mask
+            # visualize(mask=mask, image=img)
+
+        img = img.transpose((2, 0, 1))
+        mask = mask.transpose((2, 0, 1))
+        return img, mask
