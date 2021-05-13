@@ -17,7 +17,7 @@ class Paths:
         # raw
         self.dir_database = f'{self.dir_root}/data/databases/{self.db_name}'
         self.dir_raw_db = f'{self.dir_database}/raw_data'
-        self.json_file = f'{self.dir_database}/{self.db_name}.json'
+        self.json_file_database = f'{self.dir_database}/{self.db_name}.json'
 
         # test
         self.dir_prediction = f'{self.dir_database}/prediction'
@@ -26,3 +26,6 @@ class Paths:
         self.dir_pretrained_model = f'{self.dir_checkpoint}/{model_ckp}'
         self.hdf5_db = f"{self.dir_database}/{self.db_name}.hdf5"
         self.hdf5_results = f"{self.dir_database}/{self.db_name}_predictions.hdf5"
+
+        self.json_file_train_results = f"{self.dir_database}/train_results.json"
+        self.json_file_inference_results = f"{self.dir_database}/inference_results.json"

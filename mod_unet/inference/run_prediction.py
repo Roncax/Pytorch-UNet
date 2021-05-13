@@ -5,7 +5,7 @@ from mod_unet.inference.multibin_comb import multibin_prediction
 from mod_unet.inference.predict import predict_test_db
 from mod_unet.network_architecture.net_factory import build_net
 from mod_unet.utilities.paths import Paths
-from mod_unet.utilities.data_vis import compute_viz_metrics
+from mod_unet.utilities.data_vis import compute_save_metrics
 
 
 # labels = {"0": "Bg",
@@ -16,27 +16,28 @@ from mod_unet.utilities.data_vis import compute_viz_metrics
 #           "5": "Esophagus",
 #           "6": "SpinalCord"
 #           }
-
+def save_results(paths, multibin_comb, labels, metrics, used_net):
+    pass
 
 if __name__ == "__main__":
     db_name = "StructSeg2019_Task3_Thoracic_OAR"
-    scale = 1  # TODO not working now
 
     load_dir_list = {
-        "1": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_RightLung)_Experiment(293)_Epoch(4)_Loss(0.0385).pth",
-        "2": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_LeftLung)_Experiment(298)_Epoch(8).pth_Loss(0.0318).pth",
-        "3": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_Heart)_Experiment(299)_Epoch(13).pth_Loss(0.0619).pth",
-        "4": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_Trachea)_Experiment(302)_Epoch(15)_Loss(0.2132).pth",
-        "5": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_Esophagus)_Experiment(303)_Epoch(10)_Loss(0.1941).pth",
-        "6": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_SpinalCord)_Experiment(304)_Epoch(8)_Loss(0.1045).pth",
-        "coarse": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet Coarse)_Experiment(458)_Epoch(14)_Loss(0.0094)_LossCrit(coarse)_Scale(0.7)_augmentedDB.pth"
+        "1": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_RightLung)_Experiment(468)_Epoch(9)_Loss(0.0412)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
+        "2": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_LeftLung)_Experiment(469)_Epoch(3)_Loss(0.0391)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
+        "3": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_Heart)_Experiment(470)_Epoch(10)_Loss(0.0732)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
+        "4": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_Trachea)_Experiment(471)_Epoch(9)_Loss(0.4676)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
+        "5": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_Esophagus)_Experiment(472)_Epoch(4)_Loss(0.5256)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
+        "6": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_SpinalCord)_Experiment(473)_Epoch(8)_Loss(0.2333)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
+        "coarse": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet Coarse)_Experiment(515)_Epoch(11)_Loss(0.0076)_LossCrit(coarse)_Scale(1)_augmentedDB.pth"
     }
+    results_name = load_dir_list['coarse'].replace('.pth', '')
+    scale = 1
     mask_threshold = 0.5
     viz = True
     input_size = (1, 512, 512)
     models = "Unet"
     metrics = ['Dice', 'Hausdorff Distance 95']
-    data_shape = (1, 512, 512)
     multibin_comb = False
     labels = {"0": "Bg",
               "1": "RightLung",
@@ -96,5 +97,7 @@ if __name__ == "__main__":
         predict_test_db(labels=labels, mask_threshold=mask_threshold, device=device, net=net,
                         scale=scale, paths=paths)
 
-        if viz:
-            compute_viz_metrics(paths=paths, multibin_comb=multibin_comb, labels=labels, metrics=metrics)
+    save_results(paths=paths.json_file_inference_results, multibin_comb=multibin_comb, labels=labels, metrics=metrics, used_net=results_name)
+    if viz:
+        compute_save_metrics(paths=paths, multibin_comb=multibin_comb, labels=labels, metrics=metrics, used_net=results_name)
+

@@ -12,9 +12,8 @@ from mod_unet.utilities.data_vis import visualize
 
 
 class HDF5Dataset(Dataset):
-    def __init__(self, scale: float, db_info: dict, mode: str, paths, labels: dict, augmentation = False):
-        db_info["experiments"] += 1
-        json.dump(db_info, open(paths.json_file, "w"))
+    def __init__(self, scale: float, db_info: dict, mode: str, paths, labels: dict, augmentation=False):
+        self.db_info = db_info
 
         self.labels = labels
         self.db_dir = paths.hdf5_db
@@ -23,8 +22,6 @@ class HDF5Dataset(Dataset):
         self.augmentation = augmentation
         assert 0 < scale <= 1, 'Scale must be between 0 and 1'
 
-        self.db_info = db_info
-        self.db_info["experiments"] += 1
         self.ids_img = []
         self.ids_mask = []
         db = h5py.File(self.db_dir, 'r')
@@ -58,7 +55,8 @@ class HDF5Dataset(Dataset):
             mask_cp = np.zeros(shape=mask.shape, dtype=int)
 
             if len(l) == 1:
-                img = setDicomWinWidthWinCenter(img_data=img, winwidth=self.db_info["CTwindow_width"][self.labels[l[0]]],
+                img = setDicomWinWidthWinCenter(img_data=img,
+                                                winwidth=self.db_info["CTwindow_width"][self.labels[l[0]]],
                                                 wincenter=self.db_info["CTwindow_level"][self.labels[l[0]]])
                 mask_cp[mask == int(l[0])] = 1
 
@@ -71,14 +69,17 @@ class HDF5Dataset(Dataset):
             img = np.uint8(img)
             img, mask = self.prepare_segmentation_img_mask(img=img, mask=mask_cp)
 
+        # binary mask + multiclass mask and img
         elif self.mode == "test":
             for lab in self.labels:
-                img_temp=img.copy()
-                img_temp = setDicomWinWidthWinCenter(img_data=img_temp, winwidth=self.db_info["CTwindow_width"][self.labels[lab]],
-                                            wincenter=self.db_info["CTwindow_level"][self.labels[lab]])
+                img_temp = img.copy()
+                img_temp = setDicomWinWidthWinCenter(img_data=img_temp,
+                                                     winwidth=self.db_info["CTwindow_width"][self.labels[lab]],
+                                                     wincenter=self.db_info["CTwindow_level"][self.labels[lab]])
                 img_temp = np.uint8(img_temp)
 
-                img_temp = prepare_img(img_temp, self.scale)
+                # img_temp = prepare_img(img_temp, self.scale)
+                img_temp = self.prepare_segmentation_inference_single(img=img_temp)
 
                 img_temp = torch.from_numpy(img_temp).type(torch.FloatTensor)
                 img_dict[lab] = img_temp
@@ -91,7 +92,7 @@ class HDF5Dataset(Dataset):
                 mask_cp[mask == int(key)] = key
 
             img = np.uint8(img)
-            img, mask = self.prepare_segmentation_img_mask(img=img, mask=mask_cp)
+            img, mask = self.prepare_segmentation_inference(img=img, mask=mask_cp)
 
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),
@@ -101,7 +102,7 @@ class HDF5Dataset(Dataset):
         }
 
     def prepare_segmentation_img_mask(self, img, mask):
-        w, h = img.shape
+        w, h = np.shape(img)
         img = np.expand_dims(img, axis=2)
         mask = np.expand_dims(mask, axis=2)
 
@@ -112,10 +113,13 @@ class HDF5Dataset(Dataset):
 
         if self.augmentation:
             transform = A.Compose([
-                A.ElasticTransform(p=0.5, alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03),
+                A.ElasticTransform(p=0.5, alpha=120 * 0.25, sigma=120 * 0.05, alpha_affine=120 * 0.03),
                 A.GridDistortion(p=0.5),
-                A.Blur(blur_limit=7, always_apply=False, p=0.5),
-                A.GaussNoise(var_limit=(10, 50), always_apply=False, p=0.5),
+                A.RandomScale(scale_limit=0.1, p=0.5),
+                A.Rotate(limit=10, p=0.5),
+                # A.ShiftScaleRotate(shift_limit=0, scale_limit=0.1, rotate_limit=10, p=0.5),
+                # A.Blur(blur_limit=7, always_apply=False, p=0.5),
+                A.GaussNoise(var_limit=(0, 10), always_apply=False, p=0.5),
             ])
 
             transformed = transform(image=original_img, mask=original_mask)
@@ -123,13 +127,44 @@ class HDF5Dataset(Dataset):
             mask = transformed['mask']
 
             img = img / 255
-            #visualize(mask=mask, image=img, original_image=original_img, original_mask=original_mask)
+            # visualize(mask=mask, image=img, original_image=original_img, original_mask=original_mask)
 
         else:
-            img = original_img/255
+            img = original_img / 255
             mask = original_mask
             # visualize(mask=mask, image=img)
 
         img = img.transpose((2, 0, 1))
         mask = mask.transpose((2, 0, 1))
         return img, mask
+
+    def prepare_segmentation_inference(self, img, mask):
+        w, h = np.shape(img)
+        img = np.expand_dims(img, axis=2)
+        mask = np.expand_dims(mask, axis=2)
+
+        resize = A.Resize(height=int(self.scale * w), width=int(self.scale * h), always_apply=True)
+        resized_img = resize(image=img, mask=mask)
+        original_img = resized_img['image']
+        original_mask = resized_img['mask']
+
+        img = original_img / 255
+        mask = original_mask
+        # visualize(mask=mask, image=img)
+
+        img = img.transpose((2, 0, 1))
+        mask = mask.transpose((2, 0, 1))
+        return img, mask
+
+    def prepare_segmentation_inference_single(self, img):
+        w, h = np.shape(img)
+        img = np.expand_dims(img, axis=2)
+
+        resize = A.Resize(height=int(self.scale * w), width=int(self.scale * h), always_apply=True)
+        resized_img = resize(image=img)
+        original_img = resized_img['image']
+
+        img = original_img / 255
+        img = img.transpose((2, 0, 1))
+
+        return img

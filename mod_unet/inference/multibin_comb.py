@@ -39,15 +39,15 @@ def multibin_prediction(scale, mask_threshold, nets, device, paths, labels, coar
                 comb_dict = {}
 
                 for organ in nets.keys():
+                    nets[organ].eval()
                     img = imgs[organ]
 
-                    img = img.to(device=device, dtype=torch.float32)
-                    nets[organ].eval()
 
                     assert img.shape[1] == nets[organ].n_channels, \
                         f'Network has been defined with {nets[organ].n_channels} input channels, ' \
                         f'but loaded images have {img.shape[1]} channels. Please check that ' \
                         'the images are loaded correctly.'
+                    img = img.to(device=device, dtype=torch.float32)
 
                     with torch.no_grad():
                         output = nets[organ](img)

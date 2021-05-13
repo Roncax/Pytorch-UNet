@@ -9,7 +9,7 @@ from mod_unet.evaluation.metrics import ConfusionMatrix
 import mod_unet.evaluation.metrics as metrics
 
 
-def eval_train(net, loader, device):
+def eval_train(net, loader, device, deep_supervision):
     """Evaluation of the net (multiclass -> crossentropy, binary -> dice)"""
     net.eval()  # the net is in evaluation mode
     mask_type = torch.float32 if net.n_classes == 1 else torch.long
@@ -24,7 +24,11 @@ def eval_train(net, loader, device):
             true_masks = true_masks.to(device=device, dtype=mask_type)
 
             with torch.no_grad():
-                mask_pred = net(imgs)
+                if deep_supervision:
+                    y0, y1, y2, y3, y4 = net(imgs)
+                    mask_pred = y0
+                else:
+                    mask_pred = net(imgs)
 
             # iterate over all files of single batch
             for true_mask, pred in zip(true_masks, mask_pred):
@@ -35,7 +39,7 @@ def eval_train(net, loader, device):
                 else:
                     # Single class evaluation over all validation volume
                     pred = torch.sigmoid(pred)
-                    pred = (pred > 0.5).float() # 0 or 1 by threeshold
+                    pred = (pred > 0.5).float()  # 0 or 1 by threeshold
 
                     pred = pred.detach().cpu().numpy()
                     true_mask = true_mask.detach().cpu().numpy()

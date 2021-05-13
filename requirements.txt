@@ -13,3 +13,5 @@ torchsummary~=1.5.1
 
 h5py~=2.10.0
 MedPy~=0.4.0
+albumentations~=0.5.2
+scikit-image~=0.18.1

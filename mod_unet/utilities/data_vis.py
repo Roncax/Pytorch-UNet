@@ -68,34 +68,24 @@ def volume2gif(volume, target_folder, out_name,):
     imageio.mimsave(f"{target_folder}/{out_name}.gif", volume)
 
 
-def plot_single_result(results, type, paths, labels, mode):
+def plot_single_result(score, type, paths, mode, used_net):
     fig, ax = plt.subplots()
-
-    score = {}
-    for organ in labels:
-        score[labels[organ]] = []
-
-    logging.info(f"Calculating {type} now")
-    with tqdm(total=len(results.keys()), unit='volume') as pbar:
-        for patient in results:
-            for organ in results[patient]:
-                score[organ].append(metrics.ALL_METRICS[type](confusion_matrix=results[patient][organ]))
-            pbar.update(1)
 
     ax.boxplot(x=score.values(), labels=score.keys())
     plt.title(f"{type} {mode}")
     plt.xticks(rotation=-45)
+    plt.ylim(bottom=0)
 
     os.makedirs(f"{paths.dir_plots}", exist_ok=True)
-    plt.savefig(paths.dir_plots + f"/{type}_{mode}.png")
+    plt.savefig(paths.dir_plots + f"/{type}_{mode}_{used_net}.png")
 
 
-def plot_results(results, paths, labels, met='all', mode=""):
+def plot_results(results, paths, labels, used_net, met='all', mode=""):
     if met == all:
         met = metrics.ALL_METRICS.keys()
 
     for m in met:
-        plot_single_result(results=results, type=m, paths=paths, labels=labels, mode=mode)
+        plot_single_result(results=results, type=m, paths=paths, labels=labels, mode=mode, used_net=used_net)
 
 
 def visualize(image, mask, original_image=None, original_mask=None):
@@ -123,8 +113,54 @@ def visualize(image, mask, original_image=None, original_mask=None):
 
     plt.show()
 
+def visualize_test(dict_images:dict, info:list=False):
+    fontsize = 18
+
+    f, ax = plt.subplots(len(dict_images), figsize=(8, 8))
+
+    i=0
+    for img in dict_images.keys():
+        ax[i].imshow(dict_images[img])
+        ax[i].set_title(img, fontsize=fontsize)
+        i+=1
+    temp=""
+    for str_t in info:
+        temp+= " " + str(str_t)
+    plt.figtext(0.5, 0.01, temp, ha="center", fontsize=18, bbox={"facecolor": "orange", "alpha": 0.5, "pad": 5})
+    plt.show()
+
 # calculate and save all metrics in png
-def compute_viz_metrics(paths, multibin_comb, labels, metrics):
+def save_results(results, path_json, met, labels, mode, used_net):
+    score = {}
+    for organ in labels:
+        score[labels[organ]] = []
+
+    logging.info(f"Calculating {type} now")
+    with tqdm(total=len(results.keys()), unit='volume') as pbar:
+        for patient in results:
+            for organ in results[patient]:
+                score[organ].append(metrics.ALL_METRICS[type](confusion_matrix=results[patient][organ]))
+            pbar.update(1)
+
+    dict_results = json.load(open(path_json))
+    dict_results[used_net][mode][met]={}
+    for organ in score:
+        dict_results[used_net][mode][met][organ]={}
+        d = {
+            "avg": np.average(score[organ]),
+            "min": np.min(score[organ]),
+            "max": np.max(score[organ]),
+            "25_quantile":np.quantile(score[organ], q=0.25),
+            "75_quantile": np.quantile(score[organ], q=0.75)
+        }
+        dict_results[used_net][mode][met][organ].update(d)
+
+
+    #open and save metrics (like boxplot) metrics -> organ&info
+
+    return score
+
+def compute_save_metrics(paths, multibin_comb, labels, metrics, used_net=''):
     name = json.load(open(paths.json_file))["name"]
     colormap = json.load(open(paths.json_file))["colormap"]
     results = {}
@@ -173,4 +209,8 @@ def compute_viz_metrics(paths, multibin_comb, labels, metrics):
                         results[volume][labels[l]] = cm
 
                     pbar.update(1)
-                plot_results(results=results, paths=paths, met=metrics, labels=labels, mode=mode)
+
+                for m in metrics:
+                    results_dict = save_results(results=results, path_json=paths.json_file_inference_results, met=m, labels=labels, mode=mode, used_net=used_net)
+                    plot_single_result(score=results_dict, type=m, paths=paths.dir_plots, used_net=used_net, mode=mode)
+                    #plot_results(results=i, paths=paths.dir_plots, mode=mode, used_net=used_net)
