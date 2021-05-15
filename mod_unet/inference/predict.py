@@ -12,7 +12,7 @@ from mod_unet.datasets.hdf5Dataset import HDF5Dataset
 
 def predict_test_db(scale, mask_threshold, net, device, paths, labels):
     net.eval()
-    dataset = HDF5Dataset(scale=scale, mode='test', db_info=json.load(open(paths.json_file)), paths=paths,
+    dataset = HDF5Dataset(scale=scale, mode='test', db_info=json.load(open(paths.json_file_database)), paths=paths,
                           labels=labels)
     test_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
     with h5py.File(paths.hdf5_results, 'w') as db:

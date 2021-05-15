@@ -3,6 +3,7 @@ import logging
 import time
 from statistics import mean
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch import optim
@@ -12,7 +13,7 @@ from torch.utils.data import DataLoader, random_split
 from mod_unet.evaluation import eval
 from mod_unet.utilities.data_vis import visualize_test
 
-from mod_unet.training.loss.loss_factory import build_loss
+from mod_unet.training.loss_factory import build_loss
 from mod_unet.training.early_stopping import EarlyStopping
 from mod_unet.utilities.tensorboard import Board
 
@@ -21,12 +22,14 @@ def train_net(net, device, epochs, batch_size,
               lr, val_percent, img_scale,
               patience, paths, labels,
               loss_criterion, augmentation, deep_supervision,
-              dict_results, dict_db_parameters, start_time,debug_mode=False):
+              dict_results, dict_db_parameters, start_time,
+              debug_mode=False, weights=None):
     global_step = 0
     optimizer = optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8, momentum=0.9)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min', patience=2)
 
-    criterion = build_loss(loss_criterion=loss_criterion)  # TODO diceloss che non funge
+    criterion = build_loss(loss_criterion=loss_criterion, weight=(
+        torch.FloatTensor(weights).to(device=device).unsqueeze(dim=0) if net.n_classes > 2 else None))
 
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
@@ -38,8 +41,7 @@ def train_net(net, device, epochs, batch_size,
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True,
-                            drop_last=True)
+    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True, drop_last=True)
 
     # tensorboard viz
     tsboard = Board(dataset_parameters=dataset.db_info, path=paths.dir_tensorboard_runs, active_logs=not debug_mode)
@@ -74,44 +76,52 @@ def train_net(net, device, epochs, batch_size,
                 mask_type = torch.float32 if net.n_classes == 1 else torch.long
                 true_masks = true_masks.to(device=device, dtype=mask_type)
 
+                true_masks = true_masks.squeeze(1) if net.n_classes > 1 else true_masks
                 # different number of losses returned in deep_supervision
                 if deep_supervision:
-                    if net.name == "Unet" or net.name=="SE-ResUnet":
+                    if net.name == "Unet" or net.name == "SE-ResUnet":
                         y0, y1, y2, y3, y4 = net(imgs)
-                        loss0 = criterion(y0, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
-                        loss1 = criterion(y1, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
-                        loss2 = criterion(y2, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
-                        loss3 = criterion(y3, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
-                        loss4 = criterion(y4, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
+                        loss0 = criterion(y0, true_masks)
+                        loss1 = criterion(y1, true_masks)
+                        loss2 = criterion(y2, true_masks)
+                        loss3 = criterion(y3, true_masks)
+                        loss4 = criterion(y4, true_masks)
                         loss = loss0 + loss1 + loss2 + loss3 + loss4
 
+                        # if global_step % 50 == 0:
+                        #     net.eval()
+                        #     print(imgs.shape)
+                        #     print(true_masks.shape)
+                        #     dict = {
+                        #         "img_real": imgs.squeeze().cpu().detach().numpy(),
+                        #         "gt": true_masks.squeeze().cpu().detach().numpy()*255/7,
+                        #         #"prediction": y0.squeeze().cpu().detach().numpy() * 255
+                        #     }
+                        #     if y0.shape[0] < 500:
+                        #         for i in range(y0.shape[0]):
+                        #             print(i)
+                        #             temp = y0.cpu().detach().numpy()
+                        #             temp = temp[i, :, :]*255/7
+                        #             dict.update({str(i): temp})
+                        #             print(np.shape(temp))
+                        #
+                        #     info = []
+                        #     info.append(loss0.item())
+                        #
+                        #     visualize_test(dict_images=dict, info=info)
+                        #     net.train()
 
-
-                        if global_step % 50 == 0:
-
-                            net.eval()
-                            dict={
-                                "img_real":imgs.squeeze().cpu().detach().numpy(),
-                                "gt":true_masks.squeeze().cpu().detach().numpy(),
-                                "prediction":y0.squeeze().cpu().detach().numpy()*255
-                            }
-                            info = []
-                            info.append(loss0.item())
-
-                            visualize_test(dict_images=dict, info=info)
-                            net.train()
-
-                    if net.name== "NestedUnet":
+                    if net.name == "NestedUnet":
                         y0, y1, y2, y3 = net(imgs)
-                        loss0 = criterion(y0, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
-                        loss1 = criterion(y1, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
-                        loss2 = criterion(y2, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
-                        loss3 = criterion(y3, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
+                        loss0 = criterion(y0, true_masks)
+                        loss1 = criterion(y1, true_masks)
+                        loss2 = criterion(y2, true_masks)
+                        loss3 = criterion(y3, true_masks)
                         loss = loss0 + loss1 + loss2 + loss3
 
                 else:
                     masks_pred = net(imgs)
-                    loss = criterion(masks_pred, true_masks.squeeze(1) if net.n_classes > 1 else true_masks)
+                    loss = criterion(masks_pred, true_masks)
 
                 loss_list.append(loss.item())
                 if global_step % 10 == 0:
@@ -139,7 +149,8 @@ def train_net(net, device, epochs, batch_size,
                                 f'_Epoch({epoch})'
 
                     if not debug_mode:
-                        temp_dict={"validation_loss": loss_val, "avg_train_loss": mean(loss_list),"elapsed_time": time.time()-start_time}
+                        temp_dict = {"validation_loss": loss_val, "avg_train_loss": mean(loss_list),
+                                     "elapsed_time": time.time() - start_time}
                         dict_results[dataset.db_info["experiments"]]["epochs"][str(epoch)] = {}
                         dict_results[dataset.db_info["experiments"]]["epochs"][str(epoch)].update(temp_dict)
                         json.dump(dict_results, open(paths.json_file_train_results, "w"))

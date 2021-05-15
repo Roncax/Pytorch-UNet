@@ -27,10 +27,11 @@ def run_training(args):
     feature_extraction = args.feature_extraction
     verbose = args.verbose
     augmentation = True  # args.augmentation
-    train_type = 'multibinary' #args.train_type
+    train_type = 'multiclass' #args.train_type
     deep_supervision = True  # args.deep_supervision
     dropout = True  # args.dropout
     scale = args.scale
+
     old_classes = args.old_classes
     debug_mode = False #args.debug_mode
 
@@ -38,35 +39,37 @@ def run_training(args):
 
     dict_db_parameters = json.load(open(paths.json_file_database))
     dict_results = json.load(open(paths.json_file_train_results))
+    weights = [float(x)/100 for x in dict_db_parameters["weights"].values()]
 
     data_shape = (
         dict_db_parameters["image_size"][0], dict_db_parameters["image_size"][1], dict_db_parameters["image_size"][2])
-    labels = {
-    "2": "LeftLung",
-    "3": "Heart",
-    "4": "Trachea",
-    "5": "Esophagus",
-    "6": "SpinalCord"
-  } #dict_db_parameters["labels"]
+    labels = {"0": "Bg",
+        "1": "RightLung",
+          "2": "LeftLung",
+          "3": "Heart",
+          "4": "Trachea",
+          "5": "Esophagus",
+          "6": "SpinalCord"
+          } #dict_db_parameters["labels"]
     n_classes = 1 if len(labels) == 2 else len(labels)  # class number in net -> #classes+1(Bg)
 
     load_dir_list = {
-        "1": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet Coarse)_Experiment(465)_Epoch(20)_Loss(0.0083)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "2": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet Coarse)_Experiment(465)_Epoch(20)_Loss(0.0083)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "3": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet Coarse)_Experiment(465)_Epoch(20)_Loss(0.0083)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "4": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet Coarse)_Experiment(465)_Epoch(20)_Loss(0.0083)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "5": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet Coarse)_Experiment(465)_Epoch(20)_Loss(0.0083)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "6": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet Coarse)_Experiment(465)_Epoch(20)_Loss(0.0083)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "coarse": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet Coarse)_Experiment(465)_Epoch(20)_Loss(0.0083)_LossCrit(coarse)_Scale(1)_augmentedDB.pth"
+        "1": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
+        "2": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
+        "3": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
+        "4": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
+        "5": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
+        "6": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
+        "coarse": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth"
     }
-
-    loss_criteria = {"1": "dice",
-                     "2": "dice",
+    # dice, bce, binartFocal, multiclassFocal, crossentropy
+    loss_criteria = {"1": "bce",
+                     "2": "bce",
                      "3": "dice",
-                     "4": "dice",
+                     "4": "bce",
                      "5": "dice",
                      "6": "dice",
-                     "coarse": "crossentropy"
+                     "coarse": "multiclassFocal"
                      }
 
     logging.info(f'Using device {device}')
@@ -85,7 +88,8 @@ def run_training(args):
         "fine_tuning": fine_tuning,
         "augmentation": augmentation,
         "loss_criteria": loss_criteria,
-        "loaded_models": load_dir_list
+        "loaded_models": load_dir_list,
+        "weights": weights
     }
 
 
@@ -117,12 +121,10 @@ def run_training(args):
                   val_percent=val, patience=patience,
                   paths=paths, labels=labels, loss_criterion=loss_criteria['coarse'],
                   augmentation=augmentation, deep_supervision=deep_supervision,
-                  dict_results=dict_results, dict_db_parameters=dict_db_parameters, debug_mode=debug_mode, start_time=start)
+                  dict_results=dict_results, dict_db_parameters=dict_db_parameters, debug_mode=debug_mode, start_time=start
+                  ,weights=weights)
 
     elif train_type == "multibinary":
-
-
-
         labels_list = filter(lambda x: x != '0', list(labels.keys()))
 
         for label in labels_list:

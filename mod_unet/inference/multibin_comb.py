@@ -27,7 +27,7 @@ def combine_predictions(comb_dict, mask_threshold, shape):
 
 
 def multibin_prediction(scale, mask_threshold, nets, device, paths, labels, coarse_net):
-    dataset = HDF5Dataset(scale=scale, mode='test', db_info=json.load(open(paths.json_file)), paths=paths,
+    dataset = HDF5Dataset(scale=scale, mode='test', db_info=json.load(open(paths.json_file_database)), paths=paths,
                           labels=labels)
     test_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
 
