@@ -24,11 +24,7 @@ def eval_train(net, loader, device, deep_supervision):
             true_masks = true_masks.to(device=device, dtype=mask_type)
 
             with torch.no_grad():
-                if deep_supervision:
-                    y0, y1, y2, y3, y4 = net(imgs)
-                    mask_pred = y0
-                else:
-                    mask_pred = net(imgs)
+                mask_pred = net(imgs)
 
             # iterate over all files of single batch
             for true_mask, pred in zip(true_masks, mask_pred):

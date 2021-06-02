@@ -114,7 +114,6 @@ class outconv(nn.Module):
         super(outconv, self).__init__()
         self.dropout = dropout
         if dropout:
-            print('dropout', rate)
             self.dp = nn.Dropout2d(rate)
         self.conv = nn.Conv2d(in_ch, out_ch, 1)
 
@@ -131,6 +130,7 @@ class SeResUNet(nn.Module):
         self.name = "SE-ResUnet"
         self.n_classes = n_classes
         self.n_channels = n_channels
+
 
         self.deep_supervision = deep_supervision
         self.inc = inconv(n_channels, 64)

@@ -1,16 +1,14 @@
 import logging
 
 import torch
-import torchvision.models.segmentation
-from torch import nn
 
+from mod_unet.network_architecture.deeplab_v3p import DeepLab
+from mod_unet.network_architecture.segnet import SegNet
 from mod_unet.network_architecture.unet import UNet
 from mod_unet.network_architecture.se_resunet import SeResUNet
 
-
 from mod_unet.network_architecture.unet import OutConv
 from mod_unet.network_architecture.se_resunet import outconv
-from mod_unet.network_architecture.nestedUnet_model import NestedUNet
 
 from torchsummary import summary
 
@@ -21,133 +19,84 @@ def set_parameter_requires_grad(model):
 
 
 # create a net for every specified model
-def build_net(model, data_shape, n_classes, device, finetuning=False, load_dir=None, feature_extraction=False,
-              old_classes=None, load_inference=False, verbose=False, dropout=False, deep_supervision=False):
+def build_net(model, channels, n_classes, finetuning=False, load_dir=None, feature_extraction=False,
+              old_classes=None, load_inference=False, dropout=False, deep_supervision=False):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     if model == "Unet":
-        net = build_Unet(data_shape=data_shape, n_classes=n_classes, finetuning=finetuning, load_dir=load_dir,
+        net = build_Unet(channels=channels, n_classes=n_classes, finetuning=finetuning, load_dir=load_dir,
                          device=device, feature_extraction=feature_extraction, old_classes=old_classes,
-                         load_inference=load_inference, verbose=verbose, deep_supervision=deep_supervision)
+                         load_inference=load_inference, deep_supervision=deep_supervision)
     elif model == "SE-ResUnet":
-        net = build_SeResUNet(data_shape=data_shape, n_classes=n_classes, finetuning=finetuning,
+        net = build_SeResUNet(channels=channels, n_classes=n_classes, finetuning=finetuning,
                               load_dir=load_dir,
                               device=device, feature_extraction=feature_extraction, old_classes=old_classes,
-                              load_inference=load_inference, verbose=verbose, dropout=dropout,
-                              deep_supervision=deep_supervision),
-    elif model == "NestedUnet":
-        net = build_NestedUNet(data_shape=data_shape, n_classes=n_classes, finetuning=finetuning,
-                               load_dir=load_dir,
-                               device=device, feature_extraction=feature_extraction, old_classes=old_classes,
-                               load_inference=load_inference, verbose=verbose, deep_supervision=deep_supervision),
-    elif model == "deeplabv3_resnet50":
-        net = torchvision.models.segmentation.segmentation.deeplabv3_resnet50(num_classes=(2 if n_classes==1 else n_classes)).to(device),
+                              load_inference=load_inference, dropout=dropout,
+                              deep_supervision=deep_supervision)
+    # TODO sistemare net builder completo
+    elif model == "segnet":
+        net = SegNet(input_nbr=1, label_nbr=n_classes).cuda()
+        net.name = "SegNet"
+        net.n_classes = n_classes
+        net.n_channels = channels
+    elif model == "deeplabv3":
+        net = DeepLab(backbone='resnet', output_stride=16, num_classes=n_classes).cuda()
+        net.name = "DeepLab V3"
+        net.n_classes = n_classes
+        net.n_channels = channels
 
     else:
-        net = None
-
-    assert net is not None
+        net=None
+        print("WARNING! The specified net doesn't exist")
 
     return net
 
 
-def build_Unet(data_shape, n_classes, finetuning, load_dir, device, feature_extraction, old_classes, load_inference,
-               verbose, deep_supervision):
-    if finetuning:
-        net = UNet(n_channels=data_shape[0], n_classes=old_classes, bilinear=True,
+def build_Unet(channels, n_classes, finetuning, load_dir, device, feature_extraction, old_classes, load_inference,
+               deep_supervision):
+    if finetuning or feature_extraction:
+        net = UNet(n_channels=channels, n_classes=old_classes, bilinear=True,
                    deep_supervision=deep_supervision).cuda()
         ckpt = torch.load(load_dir, map_location=device)
-        net.load_state_dict(ckpt['model_state_dict'])
+        net.load_state_dict(ckpt['state_dict'])
+        if feature_extraction:
+            set_parameter_requires_grad(net)
         net.outc = OutConv(64, n_classes)
-        net.n_classes = n_classes
-
-    elif feature_extraction:
-        net = UNet(n_channels=data_shape[0], n_classes=old_classes, bilinear=True,
-                   deep_supervision=deep_supervision).cuda()
-        ckpt = torch.load(load_dir, map_location=device)
-        net.load_state_dict(ckpt['model_state_dict'])
-        set_parameter_requires_grad(net)
-        net.outc = OutConv(64, n_classes, )
-        net.n_classes = n_classes
 
     elif load_inference:
-        net = UNet(n_channels=data_shape[0], n_classes=n_classes, bilinear=True).cuda()
+        net = UNet(n_channels=channels, n_classes=n_classes, bilinear=True).cuda()
         ckpt = torch.load(load_dir, map_location=device)
-        net.load_state_dict(ckpt['model_state_dict'])
-        net.n_classes = n_classes
+        net.load_state_dict(ckpt['state_dict'])
+
     else:
-        net = UNet(n_channels=data_shape[0], n_classes=n_classes, bilinear=True,
+        net = UNet(n_channels=channels, n_classes=n_classes, bilinear=True,
                    deep_supervision=deep_supervision).cuda()
 
-    net.to(device=device)
+    net.n_classes = n_classes
 
-    if verbose: summary(net, input_size=data_shape)
-
-    return net
+    return net.to(device=device)
 
 
-def build_SeResUNet(data_shape, n_classes, finetuning, load_dir, device, feature_extraction, old_classes,
-                    load_inference, verbose, dropout, deep_supervision):
-    if finetuning:
-        net = SeResUNet(n_channels=data_shape[0], n_classes=old_classes, deep_supervision=deep_supervision,
+def build_SeResUNet(channels, n_classes, finetuning, load_dir, device, feature_extraction, old_classes,
+                    load_inference, dropout, deep_supervision):
+    if finetuning or feature_extraction:
+        net = SeResUNet(n_channels=channels, n_classes=old_classes, deep_supervision=deep_supervision,
                         dropout=dropout).cuda()
         ckpt = torch.load(load_dir, map_location=device)
-        net.load_state_dict(ckpt['model_state_dict'])
+        net.load_state_dict(ckpt['state_dict'])
+        if feature_extraction:
+            set_parameter_requires_grad(net)
         net.outc = outconv(64, n_classes, dropout=True, rate=0.1)
-        net.n_classes = n_classes
-
-    elif feature_extraction:
-        net = SeResUNet(n_channels=data_shape[0], n_classes=old_classes, deep_supervision=deep_supervision,
-                        dropout=dropout).cuda()
-        ckpt = torch.load(load_dir, map_location=device)
-        net.load_state_dict(ckpt['model_state_dict'])
-        set_parameter_requires_grad(net)
-        net.outc = outconv(64, n_classes, dropout=True, rate=0.1)
-        net.n_classes = n_classes
 
     elif load_inference:
-        net = SeResUNet(n_channels=data_shape[0], n_classes=n_classes, deep_supervision=False, dropout=False).cuda()
+        net = SeResUNet(n_channels=channels, n_classes=n_classes, deep_supervision=False, dropout=False).cuda()
         ckpt = torch.load(load_dir, map_location=device)
-        net.load_state_dict(ckpt['model_state_dict'])
-        net.n_classes = n_classes
+        net.load_state_dict(ckpt['state_dict'])
+
     else:
-        net = SeResUNet(n_channels=data_shape[0], n_classes=n_classes, deep_supervision=deep_supervision,
+        net = SeResUNet(n_channels=channels, n_classes=n_classes, deep_supervision=deep_supervision,
                         dropout=dropout).cuda()
 
-    net.to(device=device)
+    net.n_classes = n_classes
 
-    if verbose: summary(net, input_size=data_shape)
-
-    return net
-
-
-def build_NestedUNet(data_shape, n_classes, finetuning, load_dir, device, feature_extraction, old_classes,
-                     load_inference, verbose, deep_supervision):
-    if finetuning:
-        net = NestedUNet(input_channels=data_shape[0], num_classes=old_classes,
-                         deep_supervision=deep_supervision).cuda()
-        ckpt = torch.load(load_dir, map_location=device)
-        net.load_state_dict(ckpt['model_state_dict'])
-        net.final = nn.Conv2d(32, n_classes, kernel_size=1)
-        net.n_classes = n_classes
-
-    elif feature_extraction:
-        net = NestedUNet(input_channels=data_shape[0], num_classes=old_classes,
-                         deep_supervision=deep_supervision).cuda()
-        ckpt = torch.load(load_dir, map_location=device)
-        net.load_state_dict(ckpt['model_state_dict'])
-        set_parameter_requires_grad(net)
-        net.final = nn.Conv2d(32, n_classes, kernel_size=1)
-        net.n_classes = n_classes
-
-    elif load_inference:
-        net = NestedUNet(input_channels=data_shape[0], num_classes=n_classes, deep_supervision=False).cuda()
-        ckpt = torch.load(load_dir, map_location=device)
-        net.load_state_dict(ckpt['model_state_dict'])
-        net.n_classes = n_classes
-    else:
-        net = NestedUNet(input_channels=data_shape[0], num_classes=n_classes, deep_supervision=deep_supervision).cuda()
-
-    net.to(device=device)
-
-    if verbose: summary(net, input_size=data_shape)
-
-    return net
+    return net.to(device=device)

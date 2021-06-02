@@ -69,6 +69,8 @@ class HDF5Dataset(Dataset):
             img = np.uint8(img)
             img, mask = self.prepare_segmentation_img_mask(img=img, mask=mask_cp)
 
+
+        #TODO velocizzare raccolta dataset
         # binary mask + multiclass mask and img
         elif self.mode == "test":
             for lab in self.labels:
@@ -93,6 +95,7 @@ class HDF5Dataset(Dataset):
 
             img = np.uint8(img)
             img, mask = self.prepare_segmentation_inference(img=img, mask=mask_cp)
+
 
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),

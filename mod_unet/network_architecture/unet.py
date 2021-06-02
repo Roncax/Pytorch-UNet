@@ -115,7 +115,7 @@ class UNet(nn.Module):
         x11 = self.up4(x22, x1)
         x0 = self.outc(x11)
 
-        if self.deep_supervision:
+        if self.deep_supervision and self.training:
             x11 = F.interpolate(self.dsoutc1(x11), x0.shape[2:], mode='bilinear')
             x22 = F.interpolate(self.dsoutc2(x22), x0.shape[2:], mode='bilinear')
             x33 = F.interpolate(self.dsoutc3(x33), x0.shape[2:], mode='bilinear')

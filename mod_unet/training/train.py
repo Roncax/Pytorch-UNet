@@ -40,11 +40,11 @@ def train_net(net, device, epochs, batch_size,
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True, drop_last=True)
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True, drop_last=True)
 
     # tensorboard viz
-    tsboard = Board(dataset_parameters=dataset.db_info, path=paths.dir_tensorboard_runs, active_logs=not debug_mode)
+    tsboard = Board(dataset_parameters=dataset.db_info, path=paths.dir_tensorboard_runs)
 
     logging.info(f'''Starting:
         Net:             {net.name}
@@ -88,28 +88,6 @@ def train_net(net, device, epochs, batch_size,
                         loss4 = criterion(y4, true_masks)
                         loss = loss0 + loss1 + loss2 + loss3 + loss4
 
-                        # if global_step % 50 == 0:
-                        #     net.eval()
-                        #     print(imgs.shape)
-                        #     print(true_masks.shape)
-                        #     dict = {
-                        #         "img_real": imgs.squeeze().cpu().detach().numpy(),
-                        #         "gt": true_masks.squeeze().cpu().detach().numpy()*255/7,
-                        #         #"prediction": y0.squeeze().cpu().detach().numpy() * 255
-                        #     }
-                        #     if y0.shape[0] < 500:
-                        #         for i in range(y0.shape[0]):
-                        #             print(i)
-                        #             temp = y0.cpu().detach().numpy()
-                        #             temp = temp[i, :, :]*255/7
-                        #             dict.update({str(i): temp})
-                        #             print(np.shape(temp))
-                        #
-                        #     info = []
-                        #     info.append(loss0.item())
-                        #
-                        #     visualize_test(dict_images=dict, info=info)
-                        #     net.train()
 
                     if net.name == "NestedUnet":
                         y0, y1, y2, y3 = net(imgs)
@@ -121,7 +99,10 @@ def train_net(net, device, epochs, batch_size,
 
                 else:
                     masks_pred = net(imgs)
-                    loss = criterion(masks_pred, true_masks)
+                    print(masks_pred)
+                    criterion2 = build_loss(loss_criterion="dice", weight=(
+                        torch.FloatTensor(weights).to(device=device).unsqueeze(dim=0) if net.n_classes > 2 else None))
+                    loss = criterion(masks_pred, true_masks) + criterion2(masks_pred, true_masks)
 
                 loss_list.append(loss.item())
                 if global_step % 10 == 0:
@@ -137,7 +118,7 @@ def train_net(net, device, epochs, batch_size,
                 global_step += 1
 
                 # validation
-                if global_step % int(len(train)) == 0:
+                if global_step % int(len(train_loader)) == 0:
                     loss_val = eval.eval_train(net, val_loader, device, deep_supervision=deep_supervision)
                     scheduler.step(loss_val)
                     tsboard.add_validation_values(global_step=global_step, loss_val=loss_val,

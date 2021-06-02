@@ -103,13 +103,13 @@ if __name__ == "__main__":
     db_name = "StructSeg2019_Task3_Thoracic_OAR"
 
     load_dir_list = {
-        "1": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(SE-ResUnet_RightLung DeepSupervision)_Experiment(530)_Epoch(26)_Loss(0.0393)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "2": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(SE-ResUnet_LeftLung DeepSupervision)_Experiment(531)_Epoch(11)_Loss(0.0354)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "3": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_Heart)_Experiment(470)_Epoch(10)_Loss(0.0732)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "4": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_Trachea)_Experiment(471)_Epoch(9)_Loss(0.4676)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "5": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_Esophagus)_Experiment(472)_Epoch(4)_Loss(0.5256)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "6": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Model(Classic Unet_FineTuning_SpinalCord)_Experiment(473)_Epoch(8)_Loss(0.2333)_LossCrit(coarse)_Scale(1)_augmentedDB.pth",
-        "coarse": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth"
+        "1": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(733)_Epoch(15).pth",
+        "2": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(734)_Epoch(12).pth",
+        "3": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(735)_Epoch(3).pth",
+        "4": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(736)_Epoch(17).pth",
+        "5": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(737)_Epoch(15).pth",
+        "6": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(738)_Epoch(13).pth",
+        "coarse": "798/model_best.model"
     }
 
     scale = 1
@@ -118,14 +118,14 @@ if __name__ == "__main__":
     input_size = (1, 512, 512)
     models = {"1": "SE-ResUnet",
               "2": "SE-ResUnet",
-              "3": "Unet",
-              "4": "Unet",
-              "5": "Unet",
-              "6": "Unet",
+              "3": "SE-ResUnet",
+              "4": "SE-ResUnet",
+              "5": "SE-ResUnet",
+              "6": "SE-ResUnet",
               "coarse":"Unet"
               }
-    metrics_list = ['Dice', 'Hausdorff Distance 95']
-    multibin_comb = True
+    metrics_list = ['Dice', 'Hausdorff Distance 95', "Avg. Surface Distance"]
+    multibin_comb = False
     labels = {"0": "Bg",
               "1": "RightLung",
               "2": "LeftLung",
