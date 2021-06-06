@@ -11,4 +11,4 @@ __pycache__/
 *.hdf5
 .vscode/
 
-data/
+data/checkpoints/
