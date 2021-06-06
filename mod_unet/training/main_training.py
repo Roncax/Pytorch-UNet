@@ -1,34 +1,30 @@
-import json
-import logging
 import argparse
-
 from mod_unet.network_architecture.net_factory import build_net
 from mod_unet.training.custom_trainer import CustomTrainer
 from mod_unet.utilities.paths import Paths
 
 
 def run_training(args):
-
-    model = "SE-ResUnet"  # args.network
+    model = "unet"  # args.network   #seresunet, unet, segnet, deeplabv3
     db_name = "StructSeg2019_Task3_Thoracic_OAR"  # args.db
-    epochs = args.epochs
+    epochs = 1000  # args.epochs
     batch_size = 4  # args.batch_size
-    lr = args.learning_rate
-    val = args.validation_size
-    patience = args.patience
-    fine_tuning = args.fine_tuning
-    feature_extraction = args.feature_extraction
-    augmentation = False  # args.augmentation
-    train_type = 'fine'  # args.train_type
-    deep_supervision = False  # args.deep_supervision
-    dropout = False  # args.dropout
-    scale = args.scale
-    fold = 5
-
-    old_classes = args.old_classes
-    paths = Paths(db=db_name)
-
+    lr = 0.0001  # args.learning_rate
+    val = 0.2  # args.validation_size
+    patience = 5  # args.patience
+    fine_tuning = False  # args.fine_tuning
+    feature_extraction = False  # args.feature_extraction
+    augmentation = True  # args.augmentation
+    train_type = 'coarse'  # args.train_type
+    deep_supervision = False  # args.deep_supervision #only unet and seresunet
+    dropout = True  # args.dropout #deeplav3 builded in, unet and seresunet only (segnet not supported)
+    scale = 1  # args.scale
     channels = 1
+    multi_loss_weights = [1, 1]  # for composite losses
+    deeplabv3_backbone = "resnet"  # resnet, drn, mobilenet, xception
+
+    old_classes = 7  # args.old_classes
+    paths = Paths(db=db_name)
 
     labels = {"0": "Bg",
               "1": "RightLung",
@@ -38,7 +34,7 @@ def run_training(args):
               "5": "Esophagus",
               "6": "SpinalCord"
               }  # dict_db_parameters["labels"]
-    n_classes = 1 if len(labels) == 2 else len(labels)  # class number in net -> #classes+1(Bg)
+    n_classes = len(labels) if len(labels) > 2 else 1
 
     load_dir_list = {
         "1": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
@@ -57,55 +53,48 @@ def run_training(args):
                      "4": "dc_bce",
                      "5": "dc_bce",
                      "6": "dc_bce",
-                     "coarse": "multiclassFocal"
+                     "coarse": "crossentropy"
                      }
 
-    if train_type == "coarse":
+    assert not (args.feature_extraction and args.fine_tuning), "Finetuning and feature extraction cannot be both active"
+    if args.feature_extraction or args.fine_tuning: assert args.old_classes > 0, "Old classes needed to be specified"
 
+    if train_type == "coarse":
         paths.set_pretrained_model(load_dir_list["coarse"])
 
         net = build_net(model=model, n_classes=n_classes, finetuning=fine_tuning, load_dir=paths.dir_pretrained_model,
                         channels=channels, old_classes=old_classes, feature_extraction=feature_extraction,
-                        dropout=dropout, deep_supervision=deep_supervision)
+                        dropout=dropout, deep_supervision=deep_supervision, backbone=deeplabv3_backbone)
 
-        trainer = CustomTrainer(fold=fold, paths=paths, image_scale=scale, augmentation=augmentation,
+        trainer = CustomTrainer( paths=paths, image_scale=scale, augmentation=augmentation,
                                 batch_size=batch_size, loss_criterion=loss_criteria['coarse'], val_percent=val,
-                                labels=labels, network=net, deep_supervision=deep_supervision)
+                                labels=labels, network=net, deep_supervision=deep_supervision, dropout=dropout,
+                                fine_tuning=fine_tuning, feature_extraction=feature_extraction,
+                                pretrained_model=load_dir_list["coarse"], lr=lr, patience=patience, epochs=epochs,
+                                multi_loss_weights=multi_loss_weights)
 
         trainer.initialize()
         trainer.run_training()
 
     elif train_type == "fine":
-
         labels_list = filter(lambda x: x != '0', list(labels.keys()))
 
         for label in labels_list:
-            dict_db_parameters = json.load(open(paths.json_file_database))
-            dict_db_parameters["experiments"] += 1
-            json.dump(dict_db_parameters, open(paths.json_file_database, "w"))
-            paths.set_experiment_number(dict_db_parameters["experiments"])
-            dict_results[dict_db_parameters["experiments"]] = {}
-            dict_results[dict_db_parameters["experiments"]].update(temp_dict)
-            dict_results[dict_db_parameters["experiments"]]["epochs"] = {}
-
             label_dict = {label: labels[label]}
-            paths.dir_pretrained_model = load_dir_list[label]
+            paths.set_pretrained_model(load_dir_list[label])
 
-            net = build_net(model=model,
-                            n_classes=1,
-                            finetuning=fine_tuning,
+            net = build_net(model=model, n_classes=1, finetuning=fine_tuning,
                             load_dir=paths.dir_pretrained_model,
-                            device=device,
-                            data_shape=data_shape, old_classes=old_classes, feature_extraction=feature_extraction,
-                            verbose=verbose, dropout=dropout, deep_supervision=deep_supervision)
+                            channels=channels, old_classes=old_classes, feature_extraction=feature_extraction,
+                            dropout=dropout, deep_supervision=deep_supervision, backbone=deeplabv3_backbone)
 
-            dict_results[dict_db_parameters["experiments"]].update({"organ": label_dict[label]})
+            trainer = CustomTrainer( paths=paths, image_scale=scale, augmentation=augmentation,
+                                    batch_size=batch_size, loss_criterion=loss_criteria[label], val_percent=val,
+                                    labels=label_dict, network=net, deep_supervision=deep_supervision, dropout=dropout,
+                                    fine_tuning=fine_tuning, feature_extraction=feature_extraction,
+                                    pretrained_model=load_dir_list[label], lr=lr, patience=patience, epochs=epochs,
+                                    multi_loss_weights=multi_loss_weights)
 
-
-
-            trainer = CustomTrainer(weights=weight, fold=5, paths=paths, image_scale=scale, augmentation=augmentation,
-                                    batch_size=batch_size, loss_criterion=loss_criteria[label], val_percent=val, labels=label_dict,
-                                    dict_db_parameters=dict_db_parameters, network=net, deep_supervision=deep_supervision, device=device)
             trainer.initialize()
             trainer.run_training()
 
@@ -145,11 +134,5 @@ if __name__ == '__main__':
     parser.add_argument("--debug_mode", required=False, default=False,
                         help="Active debug mode if you not want to had permanent effect (e.g. save pth or epoch losses)")
     args = parser.parse_args()
-
-    assert not (args.feature_extraction and args.fine_tuning), "Finetuning and feature extraction cannot be both active"
-    if args.feature_extraction or args.fine_tuning: assert args.old_classes > 0, "Old classes needed to be specified"
-
-
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
     run_training(args)

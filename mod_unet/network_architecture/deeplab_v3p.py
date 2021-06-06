@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import sys
-#sys.path.append('..')
+# sys.path.append('..')
 from mod_unet.network_architecture.deeplab.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 from mod_unet.network_architecture.deeplab.aspp import build_aspp
 from mod_unet.network_architecture.deeplab.decoder import build_decoder
@@ -64,14 +64,44 @@ class DeepLab(nn.Module):
                             yield p
 
 
-if __name__ == "__main__":
-    import os
-    os.environ['CUDA_VISIBLE_DEVICES'] = '5'
-
-    model = DeepLab(backbone='mobilenet', output_stride=16, num_classes=1).cuda()
-    model.eval()
-    input = torch.rand(1, 3, 512, 512).cuda()
-    output = model(input)
-    print(output.size())
+def set_parameter_requires_grad(model):
+    for param in model.parameters():
+        param.requires_grad = False
 
 
+def build_deeplabV3(channels, n_classes, finetuning, load_dir, device, feature_extraction, old_classes,
+                    load_inference, backbone):
+    if finetuning or feature_extraction:
+        net = DeepLab(backbone=backbone, output_stride=16, num_classes=old_classes).cuda()
+        ckpt = torch.load(load_dir, map_location=device)
+        net.load_state_dict(ckpt['state_dict'])
+        if feature_extraction:
+            set_parameter_requires_grad(net)
+
+        if net.sync_bn == True:
+            BatchNorm = SynchronizedBatchNorm2d
+        else:
+            BatchNorm = nn.BatchNorm2d
+        net.decoder.last_conv = nn.Sequential(nn.Conv2d(304, 256, kernel_size=3, stride=1, padding=1, bias=False),
+                                              BatchNorm(256),
+                                              nn.ReLU(),
+                                              nn.Dropout(0.5),
+                                              nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1, bias=False),
+                                              BatchNorm(256),
+                                              nn.ReLU(),
+                                              nn.Dropout(0.1),
+                                              nn.Conv2d(256, n_classes, kernel_size=1, stride=1))
+
+    elif load_inference:
+        net = DeepLab(backbone=backbone, output_stride=16, num_classes=n_classes).cuda()
+        ckpt = torch.load(load_dir, map_location=device)
+        net.load_state_dict(ckpt['state_dict'])
+
+    else:
+        net = DeepLab(backbone=backbone, output_stride=16, num_classes=n_classes).cuda()
+
+    net.name = f"DeepLab V3 {backbone}"
+    net.n_classes = n_classes
+    net.n_channels = channels
+
+    return net.to(device=device)

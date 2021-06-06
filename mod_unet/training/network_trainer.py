@@ -2,11 +2,10 @@ from _warnings import warn
 
 import matplotlib
 from batchgenerators.utilities.file_and_folder_operations import *
-from sklearn.model_selection import KFold
 from torch import nn
 from torch.cuda.amp import GradScaler, autocast
 
-matplotlib.use("agg")
+
 from time import time, sleep
 import torch
 import numpy as np
@@ -18,6 +17,8 @@ from abc import abstractmethod
 from datetime import datetime
 from tqdm import trange
 from nnunet.utilities.to_torch import maybe_to_torch, to_cuda
+
+matplotlib.use("agg")
 
 
 class NetworkTrainer(object):
@@ -60,8 +61,8 @@ class NetworkTrainer(object):
 
         ################# SET THESE IN INIT ################################################
         self.output_folder = None
-        self.fold = None
         self.loss = None
+        self.loss_criterion = None
         self.dataset_directory = None
         self.batch_size = None
 
@@ -77,8 +78,6 @@ class NetworkTrainer(object):
         self.train_loss_MA_alpha = 0.93  # alpha * old + (1-alpha) * new
         self.train_loss_MA_eps = 5e-4  # new MA must be at least this much better (smaller)
         self.max_num_epochs = 1000
-        self.num_batches_per_epoch = 250
-        self.num_val_batches_per_epoch = 50
         self.also_val_in_tr_mode = False
         self.lr_threshold = 1e-6  # the network will not terminate training if the lr is still above this threshold
 
@@ -96,6 +95,7 @@ class NetworkTrainer(object):
         self.log_file = None
         self.deterministic = deterministic
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if self.device == "cpu": self.print_to_log_file("WARNING: train on CPU is active and very slow")
 
         self.use_progress_bar = True
         if 'nnunet_use_progress_bar' in os.environ.keys():
@@ -146,9 +146,9 @@ class NetworkTrainer(object):
 
             x_values = list(range(self.epoch + 1))
 
-            ax.plot(x_values, self.all_tr_losses, color='b', ls='-', label="loss_tr")
+            ax.plot(x_values, self.all_tr_losses, color='b', ls='-', label="Training loss")
 
-            ax.plot(x_values, self.all_val_losses, color='r', ls='-', label="loss_val, train=False")
+            ax.plot(x_values, self.all_val_losses, color='r', ls='-', label="Validation loss, train=False")
 
             if len(self.all_val_losses_tr_mode) > 0:
                 ax.plot(x_values, self.all_val_losses_tr_mode, color='g', ls='-', label="loss_val, train=True")
@@ -224,45 +224,13 @@ class NetworkTrainer(object):
             'plot_stuff': (self.all_tr_losses, self.all_val_losses, self.all_val_losses_tr_mode,
                            self.all_val_eval_metrics),
             'best_stuff': (
-            self.best_epoch_based_on_MA_tr_loss, self.best_MA_tr_loss_for_patience, self.best_val_eval_criterion_MA)}
+                self.best_epoch_based_on_MA_tr_loss, self.best_MA_tr_loss_for_patience,
+                self.best_val_eval_criterion_MA)}
         if self.amp_grad_scaler is not None:
             save_this['amp_grad_scaler'] = self.amp_grad_scaler.state_dict()
 
         torch.save(save_this, fname)
         self.print_to_log_file("done, saving took %.2f seconds" % (time() - start_time))
-
-    def load_best_checkpoint(self, train=True):
-        if self.fold is None:
-            raise RuntimeError("Cannot load best checkpoint if self.fold is None")
-        if isfile(join(self.output_folder, "model_best.model")):
-            self.load_checkpoint(join(self.output_folder, "model_best.model"), train=train)
-        else:
-            self.print_to_log_file("WARNING! model_best.model does not exist! Cannot load best checkpoint. Falling "
-                                   "back to load_latest_checkpoint")
-            self.load_latest_checkpoint(train)
-
-    def load_latest_checkpoint(self, train=True):
-        if isfile(join(self.output_folder, "model_final_checkpoint.model")):
-            return self.load_checkpoint(join(self.output_folder, "model_final_checkpoint.model"), train=train)
-        if isfile(join(self.output_folder, "model_latest.model")):
-            return self.load_checkpoint(join(self.output_folder, "model_latest.model"), train=train)
-        if isfile(join(self.output_folder, "model_best.model")):
-            return self.load_best_checkpoint(train)
-        raise RuntimeError("No checkpoint found")
-
-    def load_final_checkpoint(self, train=False):
-        filename = join(self.output_folder, "model_final_checkpoint.model")
-        if not isfile(filename):
-            raise RuntimeError("Final checkpoint not found. Expected: %s. Please finish the training first." % filename)
-        return self.load_checkpoint(filename, train=train)
-
-    def load_checkpoint(self, fname, train=True):
-        self.print_to_log_file("loading checkpoint", fname, "train=", train)
-        if not self.was_initialized:
-            self.initialize(train)
-        # saved_model = torch.load(fname, map_location=torch.device('cuda', torch.cuda.current_device()))
-        saved_model = torch.load(fname, map_location=torch.device('cpu'))
-        self.load_checkpoint_ram(saved_model, train)
 
     @abstractmethod
     def initialize_network(self):
@@ -280,7 +248,6 @@ class NetworkTrainer(object):
         """
         pass
 
-
     def _maybe_init_amp(self):
         if self.fp16 and self.amp_grad_scaler is None:
             self.amp_grad_scaler = GradScaler()
@@ -294,12 +261,6 @@ class NetworkTrainer(object):
         pass
 
     def run_training(self):
-        if not torch.cuda.is_available():
-            self.print_to_log_file(
-                "WARNING!!! You are attempting to run training on a CPU (torch.cuda.is_available() is False). This can be VERY slow!")
-
-        # _ = next(iter(self.tr_gen))
-        # _ = next(iter(self.val_gen))
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -326,7 +287,7 @@ class NetworkTrainer(object):
             self.network.train()
 
             if self.use_progress_bar:
-                with trange(len(self.tr_gen)) as tbar:
+                with trange(len(self.tr_gen), unit='batch', leave=False) as tbar:
                     for d in self.tr_gen:
                         tbar.set_description("Epoch {}/{}".format(self.epoch + 1, self.max_num_epochs))
 
@@ -347,11 +308,18 @@ class NetworkTrainer(object):
                 # validation with train=False
                 self.network.eval()
                 val_losses = []
-                for d in self.val_gen:
-                    l = self.run_iteration(d, False, True)
-                    val_losses.append(l)
-                self.all_val_losses.append(np.mean(val_losses))
-                self.print_to_log_file("validation loss: %.4f" % self.all_val_losses[-1])
+                with trange(len(self.tr_gen), unit='batch', leave=False) as tbar:
+                    for d in self.val_gen:
+                        tbar.set_description("Validation epoch {}".format(self.epoch + 1))
+
+                        l = self.run_iteration(d, False, True)
+
+                        tbar.set_postfix(loss=l)
+                        tbar.update(n=1)
+                        val_losses.append(l)
+
+                    self.all_val_losses.append(np.mean(val_losses))
+                    self.print_to_log_file("validation loss: %.4f" % self.all_val_losses[-1])
 
                 if self.also_val_in_tr_mode:
                     self.network.train()
@@ -467,7 +435,6 @@ class NetworkTrainer(object):
                 self.best_epoch_based_on_MA_tr_loss = self.epoch
                 self.print_to_log_file("New best epoch (train loss MA): %03.4f" % self.best_MA_tr_loss_for_patience)
             else:
-                pass
                 self.print_to_log_file("No improvement: current train MA %03.4f, best: %03.4f, eps is %03.4f" %
                                        (self.train_loss_MA, self.best_MA_tr_loss_for_patience, self.train_loss_MA_eps))
 
@@ -490,8 +457,6 @@ class NetworkTrainer(object):
         self.finish_online_evaluation()  # does not have to do anything, but can be used to update self.all_val_eval_
         # metrics
 
-        self.validate()
-
         self.plot_progress()
 
         self.maybe_update_lr()
@@ -500,7 +465,10 @@ class NetworkTrainer(object):
 
         self.update_eval_criterion_MA()
 
+        self.validate()
+
         continue_training = self.manage_patience()
+
         return continue_training
 
     def update_train_loss_MA(self):
@@ -521,11 +489,16 @@ class NetworkTrainer(object):
             data = to_cuda(data)
             target = to_cuda(target)
 
+        if self.loss_criterion == "crossentropy":
+            target = target.to(self.device, dtype=torch.long)
+            target = target.squeeze(dim=1)
+
         self.optimizer.zero_grad()
 
         if self.fp16:
             with autocast():
                 output = self.network(data)
+
                 del data
                 l = self.loss(output, target)
 

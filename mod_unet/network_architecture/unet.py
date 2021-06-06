@@ -49,9 +49,8 @@ class Up(nn.Module):
             self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
             self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
         else:
-            self.up = nn.ConvTranspose2d(in_channels , in_channels // 2, kernel_size=2, stride=2)
+            self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
             self.conv = DoubleConv(in_channels, out_channels)
-
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
@@ -115,7 +114,7 @@ class UNet(nn.Module):
         x11 = self.up4(x22, x1)
         x0 = self.outc(x11)
 
-        if self.deep_supervision and self.training:
+        if self.deep_supervision:
             x11 = F.interpolate(self.dsoutc1(x11), x0.shape[2:], mode='bilinear')
             x22 = F.interpolate(self.dsoutc2(x22), x0.shape[2:], mode='bilinear')
             x33 = F.interpolate(self.dsoutc3(x33), x0.shape[2:], mode='bilinear')
@@ -123,3 +122,33 @@ class UNet(nn.Module):
             return x0, x11, x22, x33, x44
         else:
             return x0
+
+
+def set_parameter_requires_grad(model):
+    for param in model.parameters():
+        param.requires_grad = False
+
+
+def build_unet(channels, n_classes, finetuning, load_dir, device, feature_extraction, old_classes, load_inference,
+               deep_supervision):
+    if finetuning or feature_extraction:
+        net = UNet(n_channels=channels, n_classes=old_classes, bilinear=True,
+                   deep_supervision=deep_supervision).cuda()
+        ckpt = torch.load(load_dir, map_location=device)
+        net.load_state_dict(ckpt['state_dict'])
+        if feature_extraction:
+            set_parameter_requires_grad(net)
+        net.outc = OutConv(64, n_classes)
+
+    elif load_inference:
+        net = UNet(n_channels=channels, n_classes=n_classes, bilinear=True).cuda()
+        ckpt = torch.load(load_dir, map_location=device)
+        net.load_state_dict(ckpt['state_dict'])
+
+    else:
+        net = UNet(n_channels=channels, n_classes=n_classes, bilinear=True,
+                   deep_supervision=deep_supervision).cuda()
+
+    net.n_classes = n_classes
+
+    return net.to(device=device)

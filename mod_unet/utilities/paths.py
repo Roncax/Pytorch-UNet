@@ -9,7 +9,6 @@ class Paths:
         self.dir_root = '/home/roncax/Git/Pytorch-UNet'
         self.dir_checkpoint = f'{self.dir_root}/data/checkpoints'
         self.set_pretrained_model(model_ckp)
-        self.dir_tensorboard_runs = f'{self.dir_root}/data/runs'
 
         # raw
         self.dir_database = f'{self.dir_root}/data/databases/{self.db_name}'

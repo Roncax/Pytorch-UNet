@@ -159,7 +159,7 @@ class SeResUNet(nn.Module):
         x22 = self.up3(x33, x2)
         x11 = self.up4(x22, x1)
         x0 = self.outc(x11)
-        if self.deep_supervision and self.training:
+        if self.deep_supervision:
             x11 = F.interpolate(self.dsoutc1(x11), x0.shape[2:], mode='bilinear')
             x22 = F.interpolate(self.dsoutc2(x22), x0.shape[2:], mode='bilinear')
             x33 = F.interpolate(self.dsoutc3(x33), x0.shape[2:], mode='bilinear')
@@ -215,7 +215,7 @@ class Shallow_SeResUNet(nn.Module):
         x22 = self.up3(x33, x2)
         x11 = self.up4(x22, x1)
         x0 = self.outc(x11)
-        if self.deep_supervision and self.training:
+        if self.deep_supervision:
             x11 = F.interpolate(self.dsoutc1(x11), x0.shape[2:], mode='bilinear')
             x22 = F.interpolate(self.dsoutc2(x22), x0.shape[2:], mode='bilinear')
             x33 = F.interpolate(self.dsoutc3(x33), x0.shape[2:], mode='bilinear')
@@ -225,3 +225,32 @@ class Shallow_SeResUNet(nn.Module):
         else:
             return x0
 
+
+def set_parameter_requires_grad(model):
+    for param in model.parameters():
+        param.requires_grad = False
+
+
+def build_SeResUNet(channels, n_classes, finetuning, load_dir, device, feature_extraction, old_classes,
+                    load_inference, dropout, deep_supervision):
+    if finetuning or feature_extraction:
+        net = SeResUNet(n_channels=channels, n_classes=old_classes, deep_supervision=deep_supervision,
+                        dropout=dropout).cuda()
+        ckpt = torch.load(load_dir, map_location=device)
+        net.load_state_dict(ckpt['state_dict'])
+        if feature_extraction:
+            set_parameter_requires_grad(net)
+        net.outc = outconv(64, n_classes, dropout=dropout, rate=0.1)
+
+    elif load_inference:
+        net = SeResUNet(n_channels=channels, n_classes=n_classes, deep_supervision=False, dropout=False).cuda()
+        ckpt = torch.load(load_dir, map_location=device)
+        net.load_state_dict(ckpt['state_dict'])
+
+    else:
+        net = SeResUNet(n_channels=channels, n_classes=n_classes, deep_supervision=deep_supervision,
+                        dropout=dropout).cuda()
+
+    net.n_classes = n_classes
+
+    return net.to(device=device)

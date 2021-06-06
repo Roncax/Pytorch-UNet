@@ -10,7 +10,7 @@ from mod_unet.utilities.build_volume import volume_mask_to_1Darray
 from mod_unet.datasets.hdf5Dataset import HDF5Dataset
 
 
-def predict_test_db(scale, mask_threshold, net, device, paths, labels):
+def predict_test_db(scale, mask_threshold, net, paths, labels):
     net.eval()
     dataset = HDF5Dataset(scale=scale, mode='test', db_info=json.load(open(paths.json_file_database)), paths=paths,
                           labels=labels)
@@ -18,15 +18,8 @@ def predict_test_db(scale, mask_threshold, net, device, paths, labels):
     with h5py.File(paths.hdf5_results, 'w') as db:
         with tqdm(total=len(dataset), unit='img') as pbar:
             for batch in test_loader:
-                imgs = batch['image']
+                imgs = batch['image'].to(device="cuda", dtype=torch.float32)
                 id = batch['id']
-
-                assert imgs.shape[1] == net.n_channels, \
-                    f'Network has been defined with {net.n_channels} input channels, ' \
-                    f'but loaded images have {imgs.shape[1]} channels. Please check that ' \
-                    'the images are loaded correctly.'
-
-                imgs = imgs.to(device=device, dtype=torch.float32)
 
                 with torch.no_grad():
                     output = net(imgs)

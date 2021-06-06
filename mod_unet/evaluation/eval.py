@@ -9,14 +9,14 @@ from mod_unet.evaluation.metrics import ConfusionMatrix
 import mod_unet.evaluation.metrics as metrics
 
 
-def eval_train(net, loader, device, deep_supervision):
+def eval_train(net, loader, device):
     """Evaluation of the net (multiclass -> crossentropy, binary -> dice)"""
     net.eval()  # the net is in evaluation mode
     mask_type = torch.float32 if net.n_classes == 1 else torch.long
     n_val = len(loader)  # the number of batches
     tot = 0
     tp, fp, tn, fn = 0, 0, 0, 0
-    with tqdm(total=n_val, desc='Validation round', unit='batch', leave=False, miniters=100) as pbar:
+    with tqdm(total=n_val, desc='Custom validation round', unit='batch', leave=False) as pbar:
         # iterate over all val batch
         for batch in loader:
             imgs, true_masks = batch['image'], batch['mask']
@@ -40,7 +40,7 @@ def eval_train(net, loader, device, deep_supervision):
                     pred = pred.detach().cpu().numpy()
                     true_mask = true_mask.detach().cpu().numpy()
 
-                    cm = metrics.ConfusionMatrix(test=np.squeeze(pred, axis=0), reference=np.squeeze(true_mask, axis=0))
+                    cm = metrics.ConfusionMatrix(test=np.squeeze(pred, axis=0), reference=true_mask) #np.squeeze(true_mask, axis=0)
                     tp_, fp_, tn_, fn_ = cm.get_matrix()
                     tp += tp_
                     fp += fp_

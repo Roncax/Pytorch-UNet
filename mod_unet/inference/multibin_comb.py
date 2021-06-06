@@ -26,7 +26,7 @@ def combine_predictions(comb_dict, mask_threshold, shape):
     return tot
 
 
-def multibin_prediction(scale, mask_threshold, nets, device, paths, labels, coarse_net):
+def multibin_prediction(scale, mask_threshold, nets,  paths, labels):
     dataset = HDF5Dataset(scale=scale, mode='test', db_info=json.load(open(paths.json_file_database)), paths=paths,
                           labels=labels)
     test_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
@@ -40,14 +40,7 @@ def multibin_prediction(scale, mask_threshold, nets, device, paths, labels, coar
 
                 for organ in nets.keys():
                     nets[organ].eval()
-                    img = imgs[organ]
-
-
-                    assert img.shape[1] == nets[organ].n_channels, \
-                        f'Network has been defined with {nets[organ].n_channels} input channels, ' \
-                        f'but loaded images have {img.shape[1]} channels. Please check that ' \
-                        'the images are loaded correctly.'
-                    img = img.to(device=device, dtype=torch.float32)
+                    img = imgs[organ].to(device="cuda", dtype=torch.float32)
 
                     with torch.no_grad():
                         output = nets[organ](img)
