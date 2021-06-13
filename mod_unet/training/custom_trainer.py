@@ -88,7 +88,7 @@ class CustomTrainer(NetworkTrainer):
         # DATASET split train/val
         self.dataset = HDF5Dataset(scale=self.img_scale, mode='train',
                                    db_info=json.load(open(self.paths.json_file_database)), paths=self.paths,
-                                   labels=self.labels, augmentation=self.augmentation)
+                                   labels=self.labels, augmentation=self.augmentation, channels=self.network.n_channels)
 
         n_val = int(len(self.dataset) * self.val_percent)
         n_train = len(self.dataset) - n_val

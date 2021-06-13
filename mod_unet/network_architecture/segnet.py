@@ -138,7 +138,7 @@ def set_parameter_requires_grad(model):
 
 def build_segnet(channels, n_classes, finetuning, load_dir, device, feature_extraction, old_classes, load_inference):
     if finetuning or feature_extraction:
-        net = SegNet(input_nbr=1, label_nbr=old_classes).cuda()
+        net = SegNet(input_nbr=channels, label_nbr=old_classes).cuda()
         ckpt = torch.load(load_dir, map_location=device)
         net.load_state_dict(ckpt['state_dict'])
         if feature_extraction:
@@ -146,12 +146,12 @@ def build_segnet(channels, n_classes, finetuning, load_dir, device, feature_extr
         net.conv11d = nn.Conv2d(64, n_classes, kernel_size=3, padding=1)
 
     elif load_inference:
-        net = SegNet(input_nbr=1, label_nbr=n_classes).cuda()
+        net = SegNet(input_nbr=channels, label_nbr=n_classes).cuda()
         ckpt = torch.load(load_dir, map_location=device)
         net.load_state_dict(ckpt['state_dict'])
 
     else:
-        net = SegNet(input_nbr=1, label_nbr=n_classes).cuda()
+        net = SegNet(input_nbr=channels, label_nbr=n_classes).cuda()
 
     net.n_classes = n_classes
     net.name = "SegNet"

@@ -104,13 +104,13 @@ if __name__ == "__main__":
     db_name = "StructSeg2019_Task3_Thoracic_OAR"
 
     load_dir_list = {
-        "1": "863/model_best.model",
-        "2": "734/Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(734)_Epoch(12).pth",
-        "3": "735/Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(735)_Epoch(3).pth",
-        "4": "736/Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(736)_Epoch(17).pth",
-        "5": "737/Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(737)_Epoch(15).pth",
-        "6": "738/Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(738)_Epoch(13).pth",
-        "coarse": "908/model_best.model"
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "",
+        "coarse": "931/model_best.model"
     }
     models = {"1": "unet",
               "2": "seresunet",
@@ -120,6 +120,7 @@ if __name__ == "__main__":
               "6": "seresunet",
               "coarse": "unet"
               }
+    deeplabv3_backbone = "mobilenet"  # resnet, drn, mobilenet, xception
 
     labels = {
         "0": "Bg",
@@ -169,7 +170,7 @@ if __name__ == "__main__":
         paths_temp = Paths(db=db_name, model_ckp=load_dir_list["coarse"])
 
         coarse_net = build_net(model=models["coarse"], n_classes=n_classes, channels=channels, load_inference=True,
-                               load_dir=paths_temp.dir_pretrained_model)
+                               load_dir=paths_temp.dir_pretrained_model, backbone=deeplabv3_backbone)
         predict_test_db(labels=labels, mask_threshold=mask_threshold, net=coarse_net, scale=scale, paths=paths_temp)
 
     # METRICS CALCULATION

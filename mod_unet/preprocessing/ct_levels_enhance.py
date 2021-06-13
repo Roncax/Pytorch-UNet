@@ -1,4 +1,4 @@
-
+# channels agnostic
 def setDicomWinWidthWinCenter(img_data, winwidth, wincenter):
     img_temp = img_data
     min = (2 * wincenter - winwidth) / 2.0 + 0.5

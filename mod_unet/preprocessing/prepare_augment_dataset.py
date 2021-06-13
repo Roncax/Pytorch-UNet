@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import albumentations as A
 
@@ -8,6 +9,9 @@ def prepare_segmentation_img_mask(img, mask, scale, augmentation):
     mask = np.expand_dims(mask, axis=2)
 
     resize = A.Resize(height=int(scale * w), width=int(scale * h), always_apply=True)
+    print(f"img {numpy.shape(img)}")
+    print(f"mask {numpy.shape(mask)}")
+
     resized_img = resize(image=img, mask=mask)
     original_img = resized_img['image']
     original_mask = resized_img['mask']

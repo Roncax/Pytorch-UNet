@@ -79,7 +79,7 @@ class NetworkTrainer(object):
         self.train_loss_MA_eps = 5e-4  # new MA must be at least this much better (smaller)
         self.max_num_epochs = 1000
         self.also_val_in_tr_mode = False
-        self.lr_threshold = 1e-6  # the network will not terminate training if the lr is still above this threshold
+        self.lr_threshold = 1 #1e-6  # the network will not terminate training if the lr is still above this threshold
 
         ################# LEAVE THESE ALONE ################################################
         self.val_eval_criterion_MA = None
@@ -356,12 +356,15 @@ class NetworkTrainer(object):
     def maybe_update_lr(self):
         # maybe update learning rate
         if self.lr_scheduler is not None:
+            print('scheduler not none ')
             assert isinstance(self.lr_scheduler, (lr_scheduler.ReduceLROnPlateau, lr_scheduler._LRScheduler))
 
             if isinstance(self.lr_scheduler, lr_scheduler.ReduceLROnPlateau):
+                print(' first schedule.step')
                 # lr scheduler is updated with moving average val loss. should be more robust
                 self.lr_scheduler.step(self.train_loss_MA)
             else:
+                print(' second schedule.step')
                 self.lr_scheduler.step(self.epoch + 1)
         self.print_to_log_file("lr is now (scheduler) %s" % str(self.optimizer.param_groups[0]['lr']))
 

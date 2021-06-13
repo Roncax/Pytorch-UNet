@@ -79,17 +79,6 @@ class ConfusionMatrix:
         return self.test_empty, self.test_full, self.reference_empty, self.reference_full
 
 
-class CustomLoss():
-    def __init__(self, type):
-        super(CustomLoss, self).__init__()
-        self.loss_type = type
-
-    def forward(self, target, input):
-
-
-        return loss
-
-
 def dice(test=None, reference=None, confusion_matrix=None, nan_for_nonexisting=True, **kwargs):
     """2TP / (2TP + FP + FN)"""
 

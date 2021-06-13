@@ -8,7 +8,7 @@ def run_training(args):
     model = "unet"  # args.network   #seresunet, unet, segnet, deeplabv3
     db_name = "StructSeg2019_Task3_Thoracic_OAR"  # args.db
     epochs = 1000  # args.epochs
-    batch_size = 4  # args.batch_size
+    batch_size = 1  # args.batch_size
     lr = 0.0001  # args.learning_rate
     val = 0.2  # args.validation_size
     patience = 5  # args.patience
@@ -19,9 +19,9 @@ def run_training(args):
     deep_supervision = False  # args.deep_supervision #only unet and seresunet
     dropout = True  # args.dropout #deeplav3 builded in, unet and seresunet only (segnet not supported)
     scale = 1  # args.scale
-    channels = 1
+    channels = 3 #used for multi-channel 3d method (forse problemi con deeplab)
     multi_loss_weights = [1, 1]  # for composite losses
-    deeplabv3_backbone = "resnet"  # resnet, drn, mobilenet, xception
+    deeplabv3_backbone = "mobilenet"  # resnet, drn, mobilenet, xception
 
     old_classes = 7  # args.old_classes
     paths = Paths(db=db_name)
@@ -43,7 +43,7 @@ def run_training(args):
         "4": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
         "5": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
         "6": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth",
-        "coarse": "Dataset(StructSeg2019_Task3_Thoracic_OAR)_Experiment(664)_Epoch(23).pth"
+        "coarse": "935/model_best.model"
     }
 
     # dice, bce, binaryFocal, multiclassFocal, crossentropy, dc_bce

@@ -1,11 +1,8 @@
 *.pyc
-*.png
 __pycache__/
 *.pth
-*.jpg
 *.nii
 *.dcm
-*.gif
 *.0
 .idea/
 *.hdf5
