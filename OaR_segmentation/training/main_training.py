@@ -1,11 +1,11 @@
 import sys
+sys.path.append(r'/home/roncax/Git/Pytorch-UNet/') # /content/gdrive/MyDrive/Colab/Thesis_OaR_Segmentation/
 
-sys.path.append(r'/home/roncax/Git/Pytorch-UNet/')
-print(sys.path)
+import warnings
+warnings.filterwarnings("ignore")
 
 import argparse
 
-import OaR_segmentation
 from OaR_segmentation.network_architecture.net_factory import build_net
 from OaR_segmentation.training.custom_trainer import CustomTrainer
 from OaR_segmentation.utilities.paths import Paths
@@ -29,14 +29,15 @@ def run_training(args):
     channels = 1 #used for multi-channel 3d method (forse problemi con deeplab)
     multi_loss_weights = [1, 1]  # for composite losses
     deeplabv3_backbone = "mobilenet"  # resnet, drn, mobilenet, xception
+    platform = "local" #local, colab, polimi
 
     old_classes = 7  # args.old_classes
-    paths = Paths(db=db_name)
+    paths = Paths(db=db_name, platform=platform)
 
     labels = {"0": "Bg",
                 #"1": "RightLung",
-              "2": "LeftLung",
-              "3": "Heart",
+              #"2": "LeftLung",
+              #"3": "Heart",
               "4": "Trachea",
               "5": "Esophagus",
               "6": "SpinalCord"
@@ -78,7 +79,7 @@ def run_training(args):
                                 labels=labels, network=net, deep_supervision=deep_supervision, dropout=dropout,
                                 fine_tuning=fine_tuning, feature_extraction=feature_extraction,
                                 pretrained_model=load_dir_list["coarse"], lr=lr, patience=patience, epochs=epochs,
-                                multi_loss_weights=multi_loss_weights)
+                                multi_loss_weights=multi_loss_weights, platform=platform)
 
         trainer.initialize()
         trainer.run_training()
@@ -100,7 +101,7 @@ def run_training(args):
                                     labels=label_dict, network=net, deep_supervision=deep_supervision, dropout=dropout,
                                     fine_tuning=fine_tuning, feature_extraction=feature_extraction,
                                     pretrained_model=load_dir_list[label], lr=lr, patience=patience, epochs=epochs,
-                                    multi_loss_weights=multi_loss_weights)
+                                    multi_loss_weights=multi_loss_weights, platform=platform)
 
             trainer.initialize()
             trainer.run_training()
@@ -109,7 +110,7 @@ def run_training(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--network", help="Unet, SE-ResUnet", required=False)
+    parser.add_argument("--network", help="seresunet, unet, segnet, deeplabv3", required=False)
     parser.add_argument("--database_name", "-db", help="Supports: StructSeg2019_Task3_Thoracic_OAR, ...", required=False)
     parser.add_argument("--deterministic", "-det",
                         help="Makes training deterministic, but reduces training speed substantially. "

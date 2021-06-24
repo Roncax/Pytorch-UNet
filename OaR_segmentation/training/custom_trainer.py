@@ -1,4 +1,5 @@
 import json
+from numpy.lib.function_base import place
 
 from torch import optim
 from torch.utils.data import DataLoader, random_split
@@ -13,7 +14,7 @@ from OaR_segmentation.evaluation import eval
 class CustomTrainer(NetworkTrainer):
     def __init__(self, paths, image_scale, augmentation, batch_size
                  , loss_criterion, val_percent, labels, network, deep_supervision, pretrained_model, dropout,
-                 feature_extraction, fine_tuning, lr, epochs, patience, multi_loss_weights, deterministic=False,
+                 feature_extraction, fine_tuning, lr, epochs, patience, multi_loss_weights,platform, deterministic=False,
                  fp16=True):
         super(CustomTrainer, self).__init__(deterministic, fp16)
 
@@ -33,6 +34,7 @@ class CustomTrainer(NetworkTrainer):
         self.class_weights = None
         self.dataset_directory = paths.dir_database
         self.lr = lr
+        self.platform = platform
 
         self.img_scale = image_scale
         self.labels = labels
@@ -45,10 +47,9 @@ class CustomTrainer(NetworkTrainer):
 
     def set_experiment_number(self):
         dict_db_parameters = json.load(open(self.paths.json_file_database))
-        dict_db_parameters["experiments"] += 1
-        self.experiment_number = dict_db_parameters["experiments"]
+        dict_db_parameters[f"experiments_{self.platform}"] += 1
+        self.experiment_number = dict_db_parameters[f"experiments_{self.platform}"]
         json.dump(dict_db_parameters, open(self.paths.json_file_database, "w"))
-        self.paths.set_experiment_number(dict_db_parameters["experiments"])
         self.paths.set_experiment_number(self.experiment_number)
         self.output_folder = self.paths.dir_checkpoint
 

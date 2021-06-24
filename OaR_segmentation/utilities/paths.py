@@ -1,14 +1,19 @@
 # Simple class to store all useful paths
 class Paths:
-    def __init__(self, db, model_ckp="") -> None:
+    def __init__(self, db, platform) -> None:
         super().__init__()
 
         # Variable:
         self.db_name = db
 
-        self.dir_root = '/home/roncax/Git/Pytorch-UNet'
+        if platform == "local":
+            self.dir_root = '/home/roncax/Git/Pytorch-UNet'
+        elif platform == "colab":
+            self.dir_root = '/content/gdrive/MyDrive/Colab/Thesis_OaR_Segmentation'
+        elif platform == "polimi":
+            self.dir_root = ''
+            
         self.dir_checkpoint = f'{self.dir_root}/data/checkpoints'
-        self.set_pretrained_model(model_ckp)
 
         # raw
         self.dir_database = f'{self.dir_root}/data/databases/{self.db_name}'
@@ -22,7 +27,8 @@ class Paths:
         self.hdf5_db = f"{self.dir_database}/{self.db_name}.hdf5"
         self.hdf5_results = f"{self.dir_database}/{self.db_name}_predictions.hdf5"
 
-        self.json_file_train_results = f"{self.dir_database}/train_results.json"
+        self.json_file_train_results = f"{self.dir_database}/train_results_{platform}.json"
+
         self.json_file_inference_results = f"{self.dir_database}/inference_results.json"
 
     def set_experiment_number(self, n):
@@ -30,3 +36,4 @@ class Paths:
 
     def set_pretrained_model(self, dir):
         self.dir_pretrained_model = f'{self.dir_checkpoint}/{dir}'
+
