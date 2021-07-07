@@ -1,8 +1,6 @@
 import sys
-sys.path.append(r'/home/roncax/Git/Pytorch-UNet/') # /content/gdrive/MyDrive/Colab/Thesis_OaR_Segmentation/
 
-import warnings
-warnings.filterwarnings("ignore")
+sys.path.append(r'/home/roncax/Git/Pytorch-UNet/') # /content/gdrive/MyDrive/Colab/Thesis_OaR_Segmentation/
 
 import argparse
 
@@ -11,11 +9,12 @@ from OaR_segmentation.training.custom_trainer import CustomTrainer
 from OaR_segmentation.utilities.paths import Paths
 
 
-def run_training(args):
+def run_training():
+    
     model = "unet"  # args.network   #seresunet, unet, segnet, deeplabv3
     db_name = "StructSeg2019_Task3_Thoracic_OAR"  # args.db
     epochs = 1000  # args.epochs
-    batch_size = 4  # args.batch_size
+    batch_size = 1  # args.batch_size
     lr = 0.0001  # args.learning_rate
     val = 0.2  # args.validation_size
     patience = 5  # args.patience
@@ -24,7 +23,7 @@ def run_training(args):
     augmentation = True  # args.augmentation
     train_type = 'fine'  # args.train_type
     deep_supervision = True  # args.deep_supervision #only unet and seresunet
-    dropout = True  # args.dropout #deeplav3 builded in, unet and seresunet only (segnet not supported)
+    dropout = False  # args.dropout #deeplav3 builded in, unet and seresunet only (segnet not supported)
     scale = 1  # args.scale
     channels = 1 #used for multi-channel 3d method (forse problemi con deeplab)
     multi_loss_weights = [1, 1]  # for composite losses
@@ -35,9 +34,9 @@ def run_training(args):
     paths = Paths(db=db_name, platform=platform)
 
     labels = {"0": "Bg",
-                #"1": "RightLung",
-              #"2": "LeftLung",
-              #"3": "Heart",
+                "1": "RightLung",
+              "2": "LeftLung",
+              "3": "Heart",
               "4": "Trachea",
               "5": "Esophagus",
               "6": "SpinalCord"
@@ -56,16 +55,16 @@ def run_training(args):
 
     # dice, bce, binaryFocal, multiclassFocal, crossentropy, dc_bce
     loss_criteria = {"1": "dc_bce",
-                     "2": "dc_bce",
-                     "3": "dc_bce",
-                     "4": "dc_bce",
-                     "5": "dc_bce",
-                     "6": "dc_bce",
+                     "2": "dice",
+                     "3": "dice",
+                     "4": "dice",
+                     "5": "dice",
+                     "6": "dice",
                      "coarse": "crossentropy"
                      }
 
-    assert not (args.feature_extraction and args.fine_tuning), "Finetuning and feature extraction cannot be both active"
-    if args.feature_extraction or args.fine_tuning: assert args.old_classes > 0, "Old classes needed to be specified"
+    assert not (feature_extraction and fine_tuning), "Finetuning and feature extraction cannot be both active"
+    if feature_extraction or fine_tuning: assert old_classes > 0, "Old classes needed to be specified"
 
     if train_type == "coarse":
         paths.set_pretrained_model(load_dir_list["coarse"])
@@ -95,6 +94,7 @@ def run_training(args):
                             load_dir=paths.dir_pretrained_model,
                             channels=channels, old_classes=old_classes, feature_extraction=feature_extraction,
                             dropout=dropout, deep_supervision=deep_supervision, backbone=deeplabv3_backbone)
+            print(net.n_classes)
 
             trainer = CustomTrainer( paths=paths, image_scale=scale, augmentation=augmentation,
                                     batch_size=batch_size, loss_criterion=loss_criteria[label], val_percent=val,
@@ -141,6 +141,6 @@ if __name__ == '__main__':
                                                                          "the last param number of the final layer")
     parser.add_argument("--debug_mode", required=False, default=False,
                         help="Active debug mode if you not want to had permanent effect (e.g. save pth or epoch losses)")
-    args = parser.parse_args()
+    #args = parser.parse_args()
 
-    run_training(args)
+    run_training()

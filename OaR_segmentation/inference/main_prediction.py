@@ -1,3 +1,7 @@
+import sys
+
+sys.path.append(r'/home/roncax/Git/Pytorch-UNet/') # /content/gdrive/MyDrive/Colab/Thesis_OaR_Segmentation/
+
 import json
 import logging
 
@@ -102,6 +106,8 @@ def save_results(results, path_json, met, labels, experiment_num, test_info):
 
 if __name__ == "__main__":
     db_name = "StructSeg2019_Task3_Thoracic_OAR"
+    platform = "local" #local, colab, polimi
+
 
     load_dir_list = {
         "1": "",
@@ -110,7 +116,7 @@ if __name__ == "__main__":
         "4": "",
         "5": "",
         "6": "",
-        "coarse": "966/model_best.model"
+        "coarse": "1043/model_best.model"
     }
     models = {"1": "unet",
               "2": "seresunet",
@@ -118,18 +124,18 @@ if __name__ == "__main__":
               "4": "seresunet",
               "5": "seresunet",
               "6": "seresunet",
-              "coarse": "segnet"
+              "coarse": "unet"
               }
     deeplabv3_backbone = "mobilenet"  # resnet, drn, mobilenet, xception
 
     labels = {
         "0": "Bg",
         "1": "RightLung",
-        "2": "LeftLung",
-        "3": "Heart",
-        "4": "Trachea",
-        "5": "Esophagus",
-        "6": "SpinalCord"
+        # "2": "LeftLung",
+        # "3": "Heart",
+        # "4": "Trachea",
+        # "5": "Esophagus",
+        # "6": "SpinalCord"
     }
     n_classes = len(labels) if len(labels) > 2 else 1
     scale = 1
@@ -139,7 +145,7 @@ if __name__ == "__main__":
     metrics_list = ['Dice', 'Hausdorff Distance 95', "Avg. Surface Distance"]
     multibin_comb = False
 
-    paths = Paths(db=db_name)
+    paths = Paths(db=db_name, platform=platform)
     dict_inference_results = json.load(open(paths.json_file_inference_results))
     dict_db_info = json.load(open(paths.json_file_database))
     experiment_num = dict_inference_results["num"] + 1
@@ -161,13 +167,16 @@ if __name__ == "__main__":
     if multibin_comb:
         nets = {}
         for label in labels.keys():
-            paths_temp = Paths(db=db_name, model_ckp=load_dir_list[label])
+            paths_temp = Paths(db=db_name, platform=platform)
+            paths.set_pretrained_model(load_dir_list[label])
+
             nets[label] = build_net(model=models[label], n_classes=1, channels=channels, load_inference=True,
                                     load_dir=paths_temp.dir_pretrained_model)
         multibin_prediction(scale=scale, labels=labels, mask_threshold=mask_threshold, paths=paths, nets=nets)
 
     else:
-        paths_temp = Paths(db=db_name, model_ckp=load_dir_list["coarse"])
+        paths_temp = Paths(db=db_name, platform=platform)
+        paths_temp.set_pretrained_model(load_dir_list["coarse"])
 
         coarse_net = build_net(model=models["coarse"], n_classes=n_classes, channels=channels, load_inference=True,
                                load_dir=paths_temp.dir_pretrained_model, backbone=deeplabv3_backbone)

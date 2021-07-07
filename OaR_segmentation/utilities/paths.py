@@ -5,6 +5,9 @@ class Paths:
 
         # Variable:
         self.db_name = db
+        self.dir_pretrained_model = ''
+        self.dir_checkpoint = ''
+
 
         if platform == "local":
             self.dir_root = '/home/roncax/Git/Pytorch-UNet'
@@ -13,7 +16,6 @@ class Paths:
         elif platform == "polimi":
             self.dir_root = ''
             
-        self.dir_checkpoint = f'{self.dir_root}/data/checkpoints'
 
         # raw
         self.dir_database = f'{self.dir_root}/data/databases/{self.db_name}'
@@ -35,5 +37,5 @@ class Paths:
         self.dir_checkpoint = f'{self.dir_root}/data/checkpoints/{n}'
 
     def set_pretrained_model(self, dir):
-        self.dir_pretrained_model = f'{self.dir_checkpoint}/{dir}'
+        self.dir_pretrained_model = f'{self.dir_root}/data/checkpoints/{dir}'
 

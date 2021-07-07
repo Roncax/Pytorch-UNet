@@ -486,8 +486,8 @@ class NetworkTrainer(object):
             data = to_cuda(data)
             target = to_cuda(target)
 
-        if self.loss_criterion == "crossentropy":
-            target = target.to(self.device, dtype=torch.long)
+        if self.loss_criterion == "crossentropy" or self.loss_criterion == "dice":
+            target = target.to(self.device)
             target = target.squeeze(dim=1)
 
         self.optimizer.zero_grad()
@@ -495,6 +495,7 @@ class NetworkTrainer(object):
         if self.fp16:
             with autocast():
                 output = self.network(data)
+
 
                 del data
                 l = self.loss(output, target)

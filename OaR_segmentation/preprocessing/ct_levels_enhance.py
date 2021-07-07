@@ -7,8 +7,6 @@ def setDicomWinWidthWinCenter(img_data, winwidth, wincenter):
 
     img_temp = (img_temp - min) * dFactor
 
-    min_index = img_temp < 0
-    img_temp[min_index] = 0
-    max_index = img_temp > 255
-    img_temp[max_index] = 255
+    img_temp[img_temp < 0] = 0
+    img_temp[img_temp > 255] = 255
     return img_temp

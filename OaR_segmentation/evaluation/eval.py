@@ -10,7 +10,7 @@ import OaR_segmentation.evaluation.metrics as metrics
 
 
 def eval_train(net, loader, device):
-    """Evaluation of the net (multiclass -> crossentropy, binary -> dice)"""
+    #Evaluation of the net (multiclass -> crossentropy, binary -> dice)
     net.eval()  # the net is in evaluation mode
     mask_type = torch.float32 if net.n_classes == 1 else torch.long
     n_val = len(loader)  # the number of batches
@@ -36,11 +36,12 @@ def eval_train(net, loader, device):
                     # Single class evaluation over all validation volume
                     pred = torch.sigmoid(pred)
                     pred = (pred > 0.5).float()  # 0 or 1 by threeshold
+                    pred=pred.squeeze(dim=1)
 
                     pred = pred.detach().cpu().numpy()
                     true_mask = true_mask.detach().cpu().numpy()
 
-                    cm = metrics.ConfusionMatrix(test=np.squeeze(pred, axis=0), reference=true_mask) #np.squeeze(true_mask, axis=0)
+                    cm = metrics.ConfusionMatrix(test=pred, reference=true_mask)
                     tp_, fp_, tn_, fn_ = cm.get_matrix()
                     tp += tp_
                     fp += fp_

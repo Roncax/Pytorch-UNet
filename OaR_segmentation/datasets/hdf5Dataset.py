@@ -62,6 +62,8 @@ class HDF5Dataset(Dataset):
         img_dict = {}
         adjacents = []
 
+
+
         # if self.channels > 1:
         #     assert self.channels % 2 == 1, f'The channels must be odd in number, but here are even'
         #     for i in range(self.channels):
@@ -83,6 +85,9 @@ class HDF5Dataset(Dataset):
                 mask_cp[mask == int(l[0])] = 1
                 mask = mask_cp
 
+                # print(f"MASK: {np.unique(mask)}")
+                # print(f" {np.shape(mask)}")
+
             else:
                 img = setDicomWinWidthWinCenter(img_data=img,
                                                 winwidth=self.db_info["CTwindow_width"]["coarse"],
@@ -91,6 +96,9 @@ class HDF5Dataset(Dataset):
             img = np.uint8(img)
             img, mask = prepare_segmentation_img_mask(img=img, mask=mask, scale=self.scale,
                                                       augmentation=self.augmentation)
+
+
+
             # else:
             #     # only specified classes are considered in the DB
             #     l = [x for x in self.labels.keys() if x != str(0)]
@@ -147,9 +155,15 @@ class HDF5Dataset(Dataset):
                                             wincenter=self.db_info["CTwindow_level"]["coarse"])
             for key in l:
                 mask_cp[mask == int(key)] = key
+            mask = mask_cp
 
             img = np.uint8(img)
-            img, mask = prepare_segmentation_inference(img=img, mask=mask_cp, scale=self.scale)
+            img, mask = prepare_segmentation_inference(img=img, mask=mask, scale=self.scale)
+
+            # print(f"Img {img.shape}")
+            # print(f"Mask{mask.shape}")
+            # print(f"mask values: {np.unique(mask)}")
+            # print(f"img values: {np.unique(img)}")
 
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),
