@@ -9,7 +9,7 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from OaR_segmentation.inference.multibin_comb import multibin_prediction
+from OaR_segmentation.stacking.multibin_comb import multibin_prediction
 from OaR_segmentation.inference.predict import predict_test_db
 from OaR_segmentation.network_architecture.net_factory import build_net
 from OaR_segmentation.utilities.build_volume import grayscale2rgb_mask
@@ -167,20 +167,18 @@ if __name__ == "__main__":
     if multibin_comb:
         nets = {}
         for label in labels.keys():
-            paths_temp = Paths(db=db_name, platform=platform)
             paths.set_pretrained_model(load_dir_list[label])
 
             nets[label] = build_net(model=models[label], n_classes=1, channels=channels, load_inference=True,
-                                    load_dir=paths_temp.dir_pretrained_model)
+                                    load_dir=paths.dir_pretrained_model)
         multibin_prediction(scale=scale, labels=labels, mask_threshold=mask_threshold, paths=paths, nets=nets)
 
     else:
-        paths_temp = Paths(db=db_name, platform=platform)
-        paths_temp.set_pretrained_model(load_dir_list["coarse"])
+        paths.set_pretrained_model(load_dir_list["coarse"])
 
         coarse_net = build_net(model=models["coarse"], n_classes=n_classes, channels=channels, load_inference=True,
-                               load_dir=paths_temp.dir_pretrained_model, backbone=deeplabv3_backbone)
-        predict_test_db(labels=labels, mask_threshold=mask_threshold, net=coarse_net, scale=scale, paths=paths_temp)
+                               load_dir=paths.dir_pretrained_model, backbone=deeplabv3_backbone)
+        predict_test_db(labels=labels, mask_threshold=mask_threshold, net=coarse_net, scale=scale, paths=paths)
 
     # METRICS CALCULATION
     compute_save_metrics(paths=paths, labels=labels, metrics_list=metrics_list, db_name=db_name,

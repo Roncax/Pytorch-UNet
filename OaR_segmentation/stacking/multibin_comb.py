@@ -10,6 +10,7 @@ from OaR_segmentation.datasets.hdf5Dataset import HDF5Dataset
 
 # return the predicted mask by higher prob value
 # comb_dict = {"0":"name", ..}
+# TODO solve overlapping regions using coarse model (optional) 
 def combine_predictions(comb_dict, mask_threshold, shape):
     tot = np.zeros(shape)
     for organ1 in comb_dict:

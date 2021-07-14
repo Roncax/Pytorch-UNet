@@ -1,3 +1,4 @@
+from OaR_segmentation.utilities.data_vis import visualize
 import h5py
 import numpy
 import numpy as np
@@ -59,9 +60,7 @@ class HDF5Dataset(Dataset):
 
         img = db[self.ids_img[idx]][()]
         mask = db[self.ids_mask[idx]][()]
-        img_dict = {}
         adjacents = []
-
 
 
         # if self.channels > 1:
@@ -133,9 +132,17 @@ class HDF5Dataset(Dataset):
             #
             #
             #     img = full_channels_img
+                
+            return {
+                'image': torch.from_numpy(img).type(torch.FloatTensor),
+                'mask': torch.from_numpy(mask).type(torch.FloatTensor),
+                'id': self.ids_img[idx],
+            }
 
         # binary mask + multiclass mask and img
         elif self.mode == "test":
+            img_dict = {}
+
             for lab in self.labels:
                 img_temp = img.copy()
                 img_temp = setDicomWinWidthWinCenter(img_data=img_temp,
@@ -160,14 +167,34 @@ class HDF5Dataset(Dataset):
             img = np.uint8(img)
             img, mask = prepare_segmentation_inference(img=img, mask=mask, scale=self.scale)
 
-            # print(f"Img {img.shape}")
-            # print(f"Mask{mask.shape}")
-            # print(f"mask values: {np.unique(mask)}")
-            # print(f"img values: {np.unique(img)}")
+            
+            return {
+                'image': torch.from_numpy(img).type(torch.FloatTensor),
+                'mask': torch.from_numpy(mask).type(torch.FloatTensor),
+                'id': self.ids_img[idx],
+                'image_organ': img_dict
+            }
+        
+        elif self.mode == "stacking":
+            mask_dict = {}
 
-        return {
-            'image': torch.from_numpy(img).type(torch.FloatTensor),
-            'mask': torch.from_numpy(mask).type(torch.FloatTensor),
-            'id': self.ids_img[idx],
-            'image_organ': img_dict
-        }
+            l = [x for x in self.labels.keys() if x != str(0)]
+ 
+            mask_gt = np.zeros(shape=mask.shape, dtype=int)
+            for key in l:
+                mask_gt[mask == int(key)] = key
+                temp_mask = np.zeros(shape=mask.shape, dtype=int)
+                temp_mask[mask == int(key)] = 1
+                temp_mask = prepare_segmentation_img_mask(mask=temp_mask, scale=self.scale)
+                temp_mask = np.uint8(temp_mask)
+                temp_mask = torch.from_numpy(temp_mask).type(torch.FloatTensor)
+                mask_dict[key] = temp_mask
+                
+            mask_gt = prepare_segmentation_img_mask(mask=mask_gt, scale=self.scale)
+
+            return {
+                'mask_dict': mask_dict,
+                'mask_gt': torch.from_numpy(mask_gt).type(torch.FloatTensor),
+                'id': self.ids_img[idx],
+            }
+
