@@ -79,11 +79,11 @@ def prepare_segmentation_mask(mask, scale):
     w, h = np.shape(mask)
     mask = np.expand_dims(mask, axis=2)
 
-    resize = A.Resize(height=int(scale * w), width=int(scale * h), always_apply=True)
-    resized_img = resize(mask=mask)
-    original_mask = resized_img['mask']
+    #resize = A.Resize(height=int(scale * w), width=int(scale * h), always_apply=True)
+    #resized_img = resize(mask=mask)
+    #original_mask = resized_img['mask']
 
     # visualize(mask=mask, image=img)
 
-    mask = original_mask.transpose((2, 0, 1))
-    return mask
+    #mask = original_mask.transpose((2, 0, 1))
+    return mask.transpose((2, 0, 1))

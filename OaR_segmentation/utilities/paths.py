@@ -40,6 +40,9 @@ class Paths:
         
     def set_experiment_stacking_number(self, n):
         self.dir_checkpoint = f'{self.dir_stacking}/{n}'
+    
+    def set_pretrained_model_stacking(self, dir):
+        self.dir_pretrained_model = f'{self.dir_root}/data/stacking/{dir}'
 
 
     def set_pretrained_model(self, dir):

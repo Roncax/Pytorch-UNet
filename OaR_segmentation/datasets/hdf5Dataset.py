@@ -10,9 +10,9 @@ from OaR_segmentation.preprocessing.prepare_augment_dataset import *
 
 
 class HDF5Dataset(Dataset):
-    def __init__(self, scale: float, db_info: dict, mode: str, paths, labels: dict,  channels, augmentation=False,):
+    def __init__(self, scale: float, db_info: dict, mode: str, paths, labels: dict,  channels, augmentation=False, stacking=False):
         self.db_info = db_info
-
+        self.stacking = stacking
         self.labels = labels
         self.db_dir = paths.hdf5_db
         self.scale = scale
@@ -140,7 +140,7 @@ class HDF5Dataset(Dataset):
             }
 
         # binary mask + multiclass mask and img
-        elif self.mode == "test":
+        elif self.mode == "test" and not self.stacking:
             img_dict = {}
 
             for lab in self.labels:
@@ -174,8 +174,9 @@ class HDF5Dataset(Dataset):
                 'id': self.ids_img[idx],
                 'image_organ': img_dict
             }
-        
-        elif self.mode == "stacking":
+            
+        #! Attenzione scale non implementato ancora
+        elif self.mode == "test" and self.stacking:
             mask_dict = {}
 
             l = [x for x in self.labels.keys() if x != str(0)]
@@ -185,12 +186,13 @@ class HDF5Dataset(Dataset):
                 mask_gt[mask == int(key)] = key
                 temp_mask = np.zeros(shape=mask.shape, dtype=int)
                 temp_mask[mask == int(key)] = 1
-                temp_mask = prepare_segmentation_img_mask(mask=temp_mask, scale=self.scale)
+                temp_mask = prepare_segmentation_mask(mask=temp_mask, scale=self.scale)
                 temp_mask = np.uint8(temp_mask)
                 temp_mask = torch.from_numpy(temp_mask).type(torch.FloatTensor)
                 mask_dict[key] = temp_mask
                 
-            mask_gt = prepare_segmentation_img_mask(mask=mask_gt, scale=self.scale)
+            mask_gt = prepare_segmentation_mask(mask=mask_gt, scale=self.scale)
+            mask_gt = np.uint8(mask_gt)
 
             return {
                 'mask_dict': mask_dict,

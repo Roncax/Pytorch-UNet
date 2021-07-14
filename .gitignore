@@ -9,3 +9,5 @@ __pycache__/
 .vscode/
 
 data/checkpoints/
+
+data/stacking/

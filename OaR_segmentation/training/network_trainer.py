@@ -489,16 +489,25 @@ class NetworkTrainer(object):
         if self.loss_criterion == "crossentropy" or self.loss_criterion == "dice":
             target = target.to(self.device)
             target = target.squeeze(dim=1)
+        
+        if self.loss_criterion == "crossentropy":
+            target = target.to(dtype=torch.long)
+
+
 
         self.optimizer.zero_grad()
 
         if self.fp16:
             with autocast():
                 output = self.network(data)
+                print(output.shape)
+                print(target.shape)
 
 
                 del data
                 l = self.loss(output, target)
+
+
 
             if do_backprop:
                 self.amp_grad_scaler.scale(l).backward()
