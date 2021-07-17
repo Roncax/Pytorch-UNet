@@ -6,6 +6,7 @@ import h5py
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 from tqdm import tqdm
 
 from OaR_segmentation.evaluation import metrics
@@ -110,6 +111,7 @@ def visualize(image, mask, original_image=None, original_mask=None):
         ax[1, 1].set_title('Transformed mask', fontsize=fontsize)
 
     plt.show()
+    plt.savefig(str(random.randint(1, 1000)))
 
 def visualize_test(dict_images:dict, info:list=False):
     fontsize = 18
@@ -121,10 +123,12 @@ def visualize_test(dict_images:dict, info:list=False):
         ax[i].imshow(dict_images[img])
         ax[i].set_title(img, fontsize=fontsize)
         i+=1
-    temp=""
-    for str_t in info:
-        temp+= " " + str(str_t)
-    plt.figtext(0.5, 0.01, temp, ha="center", fontsize=18, bbox={"facecolor": "orange", "alpha": 0.5, "pad": 5})
+    # temp=""
+    # for str_t in info:
+    #     temp+= " " + str(str_t)
+    # plt.figtext(0.5, 0.01, temp, ha="center", fontsize=18, bbox={"facecolor": "orange", "alpha": 0.5, "pad": 5})
     plt.show()
+    plt.savefig(str(random.randint(1, 1000)))
+
 
 

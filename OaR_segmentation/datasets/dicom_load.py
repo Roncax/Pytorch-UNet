@@ -1,6 +1,7 @@
 import json
 import os
 import random
+from sys import path
 import cv2
 import numpy as np
 from nibabel import load as load_nii
@@ -63,8 +64,9 @@ def nii_to_hdf5_img(nii_root: str, db_path: str, db_name: str, test_imgs: list):
 
     with h5py.File(db_path, 'a') as f:
         for name in names:
-            image_array = load_nii(os.path.join(nii_root, name, "data.nii")).get_fdata()
-            mask_array = load_nii(os.path.join(nii_root, name, "label.nii")).get_fdata()
+            
+            image_array = load_nii(os.path.join(nii_root, name, f"{name}.nii")).get_fdata()
+            mask_array = load_nii(os.path.join(nii_root, name, f"GT.nii")).get_fdata()
 
             # save every img slice in a subdir
             for n in range(image_array.shape[2]):
@@ -72,21 +74,26 @@ def nii_to_hdf5_img(nii_root: str, db_path: str, db_name: str, test_imgs: list):
                 f.create_dataset(name=f'{db_name}/{mode}/volume_{name}/image/slice_{n}', data=image_array[:, :, n])
                 f.create_dataset(name=f'{db_name}/{mode}/volume_{name}/mask/slice_{n}', data=mask_array[:, :, n])
 
+
+
     
 # choose random n volumes and save names in json
-def random_split_test(dir: str, db_info: dict, paths):
-    names = [name for name in os.listdir(dir)]
+def random_split_test(paths):
+    db_info = json.load(open(paths.json_file_database))
+    names = [name for name in os.listdir(paths.dir_raw_db)]
     test_img = random.sample(names, db_info['numTest'])
     db_info['test'] = test_img
     db_info['train'] = [item for item in names if not item in test_img]
 
     assert len(db_info['train']) == db_info['numTraining'], f'Invalid number of train items'
 
-    json.dump(db_info, open(paths.json_file, "w"))
+    json.dump(db_info, open(paths.json_file_database, "w"))
 
 
 # final shape single dataset -> (512,512) mask and img
-def prepare_structseg(paths):
-    db_name = json.load(open(paths.json_file))["name"]
-    test_imgs = json.load(open(paths.json_file))["test"]
+def prepare_dicom(paths, split_train_test=False):
+    if split_train_test:
+        random_split_test(paths=paths)
+    db_name = json.load(open(paths.json_file_database))["name"]
+    test_imgs = json.load(open(paths.json_file_database))["test"]
     nii_to_hdf5_img(db_path=paths.hdf5_db, db_name=db_name, nii_root=paths.dir_raw_db, test_imgs=test_imgs)

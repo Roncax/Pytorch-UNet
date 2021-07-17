@@ -12,7 +12,7 @@ from OaR_segmentation.utilities.paths import Paths
 def run_training():
     
     model = "unet"  # args.network   #seresunet, unet, segnet, deeplabv3
-    db_name = "StructSeg2019_Task3_Thoracic_OAR"  # args.db
+    db_name = "SegTHOR"  # args.db  #SegTHOR, StructSeg2019_Task3_Thoracic_OAR
     epochs = 1000  # args.epochs
     batch_size = 1  # args.batch_size
     lr = 0.0001  # args.learning_rate
@@ -22,7 +22,7 @@ def run_training():
     feature_extraction = False  # args.feature_extraction
     augmentation = True  # args.augmentation
     train_type = 'fine'  # args.train_type
-    deep_supervision = True  # args.deep_supervision #only unet and seresunet
+    deep_supervision = False  # args.deep_supervision #only unet and seresunet
     dropout = False  # args.dropout #deeplav3 builded in, unet and seresunet only (segnet not supported)
     scale = 1  # args.scale
     channels = 1 #used for multi-channel 3d method (forse problemi con deeplab)
@@ -33,14 +33,30 @@ def run_training():
     old_classes = 7  # args.old_classes
     paths = Paths(db=db_name, platform=platform)
 
-    labels = {"0": "Bg",
-                "1": "RightLung",
-              "2": "LeftLung",
-              "3": "Heart",
-              "4": "Trachea",
-              "5": "Esophagus",
-              "6": "SpinalCord"
+    labels = {
+        "0": "Bg",
+        "2": "Heart",
+        "4": "Aorta",
+        "3": "Trachea",
+        "1": "Esophagus"
               }  # dict_db_parameters["labels"]
+
+        #SegThor
+        # "0": "Bg",
+        # "2": "Heart",
+        # "4": "Aorta",
+        # "3": "Trachea",
+        # "1": "Esophagus"
+
+        #Structseg
+        # "0": "Bg",
+        # "1": "RightLung",
+        # "2": "LeftLung",
+        # "3": "Heart",
+        # "4": "Trachea",
+        # "5": "Esophagus",
+        # "6": "SpinalCord"
+
     n_classes = len(labels) if len(labels) > 2 else 1
 
     load_dir_list = {
@@ -54,12 +70,12 @@ def run_training():
     }
 
     # dice, bce, binaryFocal, multiclassFocal, crossentropy, dc_bce
-    loss_criteria = {"1": "dc_bce",
-                     "2": "dice",
-                     "3": "dice",
-                     "4": "dice",
-                     "5": "dice",
-                     "6": "dice",
+    loss_criteria = {
+                    "0": "bce",
+                    "2": "bce",
+                    "4": "bce",
+                    "3": "bce",
+                    "1": "bce",
                      "coarse": "crossentropy"
                      }
 

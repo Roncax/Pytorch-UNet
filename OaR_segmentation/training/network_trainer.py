@@ -492,7 +492,7 @@ class NetworkTrainer(object):
         
         if self.loss_criterion == "crossentropy":
             target = target.to(dtype=torch.long)
-
+        
 
 
         self.optimizer.zero_grad()
@@ -500,9 +500,6 @@ class NetworkTrainer(object):
         if self.fp16:
             with autocast():
                 output = self.network(data)
-                print(output.shape)
-                print(target.shape)
-
 
                 del data
                 l = self.loss(output, target)

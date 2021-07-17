@@ -18,7 +18,7 @@ class Paths:
             
 
         # raw
-        self.dir_database = f'{self.dir_root}/data/databases/{self.db_name}'
+        self.dir_database = f'{self.dir_root}/data/{self.db_name}'
         self.dir_raw_db = f'{self.dir_database}/raw_data'
         self.json_file_database = f'{self.dir_database}/{self.db_name}.json'
 
@@ -36,10 +36,14 @@ class Paths:
         self.json_stacking_experiments_results = f"{self.dir_stacking}/stacking_experiments.json"
 
     def set_experiment_number(self, n):
-        self.dir_checkpoint = f'{self.dir_root}/data/checkpoints/{n}'
+        self.dir_checkpoint = f'{self.dir_database}/checkpoints/{n}'
         
     def set_experiment_stacking_number(self, n):
         self.dir_checkpoint = f'{self.dir_stacking}/{n}'
+
+    def set_train_stacking_results(self):
+        self.json_file_train_results = self.json_stacking_experiments_results
+
     
     def set_pretrained_model_stacking(self, dir):
         self.dir_pretrained_model = f'{self.dir_root}/data/stacking/{dir}'

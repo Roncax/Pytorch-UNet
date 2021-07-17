@@ -9,8 +9,7 @@ from torchgeometry.losses.dice import DiceLoss as DL
 def build_loss(loss_criterion, deep_supervision, class_weights=None, bce_dc_weights=None):
     
 
-    weights = (torch.FloatTensor(class_weights).to(
-        device="cuda").unsqueeze(dim=0))
+    weights = (torch.FloatTensor(class_weights).to(device="cuda").unsqueeze(dim=0))
 
     switcher = {
         "dice": DiceLoss(mode="binary", smooth=1e-5),

@@ -75,6 +75,7 @@ class CustomTrainer_stacking(NetworkTrainer):
 
     def initialize_optimizer_and_scheduler(self):
         self.optimizer = optim.RMSprop(self.network.parameters(), lr=self.lr, weight_decay=1e-8, momentum=0.9)
+        #self.optimizer = optim.SGD(self.network.parameters(), lr=self.lr, momentum=0.9)
         self.lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer, mode='min', patience=2)
 
     def validate(self, *args, **kwargs):

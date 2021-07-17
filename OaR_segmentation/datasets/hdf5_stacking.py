@@ -1,5 +1,8 @@
+from operator import gt
+from typing import final
+from numpy.core.fromnumeric import shape
 from numpy.lib.arraysetops import unique
-from OaR_segmentation.utilities.data_vis import visualize
+from OaR_segmentation.utilities.data_vis import visualize, visualize_test
 import h5py
 import numpy
 import numpy as np
@@ -34,31 +37,27 @@ class HDF5Dataset_stacking(Dataset):
 
     def __getitem__(self, idx):
         db = h5py.File(self.db_dir, 'r')
-        #print(db["1"].keys())
-        #print(f"MASK {self.ids_mask[idx]}")
-
         masks = db[self.ids_mask[idx]]
+        test={}
 
-
-        final_array = np.empty(shape=(1,512,512))
+        final_array = None
         for mask_name in masks.keys():
-           
+            
             if mask_name != "gt":
-
                 
                 t_mask_dict = prepare_segmentation_mask(mask=masks[mask_name], scale=self.scale)
-                visualize(image=t_mask_dict.squeeze(), mask=t_mask_dict.squeeze())
-
-                final_array = np.concatenate((t_mask_dict, final_array), axis=0)
+                test[mask_name]=t_mask_dict.squeeze()
+                if final_array is None:
+                    final_array = t_mask_dict
+                else:
+                    final_array = np.concatenate((t_mask_dict, final_array), axis=0)
             else:
                 temp_mask = prepare_segmentation_mask(mask=masks[mask_name], scale=self.scale)
-                #temp_mask = np.uint8(temp_mask)
                 gt_mask = temp_mask
-                visualize(image=gt_mask.squeeze(), mask=gt_mask.squeeze())
-
+                test["gt"]=gt_mask.squeeze()
+                
+        #visualize_test(dict_images=test)
         
-
-
         return {
                     'image': torch.from_numpy(final_array).type(torch.FloatTensor),
                     'mask': torch.from_numpy(gt_mask).type(torch.FloatTensor),

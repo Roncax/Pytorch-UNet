@@ -7,10 +7,12 @@ import json
 import h5py
 import numpy as np
 import torch
+from torch.nn.functional import softmax
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from OaR_segmentation.network_architecture.net_factory import build_net
 from OaR_segmentation.training.custom_trainer_stacking import CustomTrainer_stacking
+from OaR_segmentation.utilities.data_vis import visualize_test
 
 from OaR_segmentation.datasets.hdf5Dataset import HDF5Dataset
 
@@ -28,32 +30,36 @@ def create_combined_dataset(scale, mask_threshold, nets,  paths, labels):
             for batch in test_loader:
                 imgs = batch['mask_dict']
                 mask_gt = batch['mask_gt']
-                
-
-                for organ in nets.keys():
-                    nets[organ].eval()
-                    img = imgs[organ].to(device="cuda", dtype=torch.float32)
-
-                    #logits
-                    with torch.no_grad():
-                        output = nets[organ](img)
-
-                    #probs = torch.sigmoid(output)
-                    probs = output.squeeze(0)
-
-                    full_mask = probs.squeeze().cpu().numpy()
-                    
-                    # full_mask = full_mask > mask_threshold
-                    # res = np.array(full_mask).astype(np.bool)
-                    #res = full_mask
-                    db.create_dataset(f"{i}/{organ}", data=full_mask)
 
 
                 mask_gt = mask_gt.to(device="cuda", dtype=torch.float32)
                 mask_gt=mask_gt.squeeze().cpu().numpy()
-                db.create_dataset(f"{i}/gt", data=mask_gt)
-    
-                i +=1
+
+                if np.sum(mask_gt) > 1:
+                    db.create_dataset(f"{i}/gt", data=mask_gt)
+                
+                    for organ in nets.keys():
+                        nets[organ].eval()
+                        img = imgs[organ].to(device="cuda", dtype=torch.float32)
+
+                        #logits
+                        with torch.no_grad():
+                            output = nets[organ](img)
+
+                        probs = torch.sigmoid(output)
+                       # probs = softmax(output)
+                        probs = output.squeeze(0)
+
+                        full_mask = probs.squeeze().cpu().numpy()
+                        
+                        
+                        # full_mask = full_mask > mask_threshold
+                        # res = np.array(full_mask).astype(np.bool)
+                        #res = full_mask
+                        
+                        db.create_dataset(f"{i}/{organ}", data=full_mask)
+
+                    i +=1
 
                 pbar.update(img.shape[0])  # update the pbar by number of imgs in batch
 
@@ -62,8 +68,7 @@ def create_combined_dataset(scale, mask_threshold, nets,  paths, labels):
 def stacking_training(paths, labels, platform):
     loss_criterion = 'crossentropy'
     lr = 1e-4
-
-    net = build_net(model='unet', n_classes=7, channels=7, load_inference=False)
+    net = build_net(model='stack_UNet', n_classes=7, channels=6, load_inference=False)
     
     
     trainer = CustomTrainer_stacking( paths=paths, image_scale=1, augmentation=False,
@@ -81,6 +86,7 @@ def stacking_training(paths, labels, platform):
 if __name__=="__main__":
     db_name = "StructSeg2019_Task3_Thoracic_OAR"
     platform = "local" #local, colab, polimi
+    db_prediction_creation = False
 
 
     load_dir_list = {
@@ -98,7 +104,7 @@ if __name__=="__main__":
               "4": "seresunet",
               "5": "seresunet",
               "6": "seresunet",
-              "coarse": "unet"
+              "coarse": "stack_unet"
               }
     deeplabv3_backbone = "mobilenet"  # resnet, drn, mobilenet, xception
 
@@ -115,21 +121,19 @@ if __name__=="__main__":
     scale = 1
     mask_threshold = 0.5
     channels = 1
-    lr = 1e-4
+    lr = 1e-5
 
     paths = Paths(db=db_name, platform=platform)
 
-
     labels.pop("0")  # don't want to predict also the background
-    
-    
     nets = {}
     for label in labels.keys():
         paths.set_pretrained_model(load_dir_list[label])
+        paths.set_train_stacking_results()
 
-        nets[label] = build_net(model=models[label], n_classes=1, channels=channels, load_inference=True,
-                                load_dir=paths.dir_pretrained_model)
+        nets[label] = build_net(model=models[label], n_classes=1, channels=channels, load_inference=True, load_dir=paths.dir_pretrained_model)
     
-    #create_combined_dataset(nets=nets,scale=scale, paths=paths, labels=labels, mask_threshold=mask_threshold )
+    if db_prediction_creation:
+        create_combined_dataset(nets=nets,scale=scale, paths=paths, labels=labels, mask_threshold=mask_threshold )
     
     stacking_training(paths=paths, labels=labels, platform=platform)
